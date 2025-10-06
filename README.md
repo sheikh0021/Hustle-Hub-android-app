@@ -197,17 +197,6 @@ The app includes sample data for testing:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-1. Check the [Issues](https://github.com/YOUR_USERNAME/DemoApp-android/issues) page
-2. Create a new issue with detailed description
-3. Include device information and error logs if applicable
-
 ## 🎯 Future Enhancements
 
 - [ ] User authentication with email/password
@@ -218,7 +207,3 @@ If you encounter any issues or have questions:
 - [ ] Advanced search and filtering
 - [ ] Multi-language support
 - [ ] Dark mode support
-
----
-
-**Built with ❤️ using Kotlin and Jetpack Compose**
