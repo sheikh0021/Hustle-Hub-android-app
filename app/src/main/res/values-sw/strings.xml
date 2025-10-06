@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">HustleHub</string>
+    
+    <!-- Dashboard -->
+    <string name="job_request_dashboard">Dashibodi ya Ombi la Kazi</string>
+    <string name="worker_dashboard">Dashibodi ya Mfanyakazi</string>
+    <string name="job_request">Ombi la Kazi</string>
+    <string name="worker">Mfanyakazi</string>
+    
+    <!-- General -->
+    <string name="balance">Salio</string>
+    <string name="search_jobs">Tafuta kazi...</string>
+    <string name="available_jobs">Kazi Zilizopo</string>
+    <string name="my_jobs">Kazi Zangu</string>
+    
+    <!-- Language Selection -->
+    <string name="select_language">Chagua Lugha</string>
+    <string name="choose_your_language">Chagua Lugha Yako</string>
+    <string name="choose_preferred_language">Chagua lugha unayopendelea kwa uzoefu bora</string>
+    <string name="btn_continue">Endelea</string>
+    <string name="wallet">Pochi</string>
+</resources>

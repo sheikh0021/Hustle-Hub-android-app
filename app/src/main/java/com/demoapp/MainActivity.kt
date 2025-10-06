@@ -1,0 +1,408 @@
+package com.demoapp
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.demoapp.feature_auth.presentation.screens.LoginScreen
+import com.demoapp.feature_auth.presentation.screens.RegisterScreen
+import com.demoapp.feature_onboarding.presentation.screens.OnboardingScreen
+import com.demoapp.feature_jobs.presentation.screens.ClientDashboardScreen
+import com.demoapp.feature_jobs.presentation.screens.WorkerDashboardScreen
+import com.demoapp.feature_jobs.presentation.screens.PostJobScreen
+import com.demoapp.feature_jobs.presentation.screens.SpecificTaskCreationScreen
+import com.demoapp.feature_jobs.presentation.screens.WorkerJobFlowScreen
+import com.demoapp.feature_jobs.presentation.screens.PaymentQRCodeScreen
+import com.demoapp.feature_jobs.presentation.screens.SimpleJobRequestScreen
+import com.demoapp.feature_jobs.presentation.screens.SimpleWorkerScreen
+import com.demoapp.feature_jobs.presentation.screens.MyTasksScreen
+import com.demoapp.feature_jobs.presentation.screens.MyPostedJobsScreen
+import com.demoapp.feature_jobs.presentation.screens.JobApplicantsScreen
+import com.demoapp.feature_jobs.presentation.screens.NotificationsScreen
+import com.demoapp.feature_jobs.presentation.screens.JobDetailsScreen
+import com.demoapp.feature_jobs.presentation.screens.CreateInvoiceScreen
+import com.demoapp.feature_jobs.presentation.screens.JobStartChatbotScreen
+import com.demoapp.feature_jobs.presentation.screens.WorkerNotificationsScreen
+import com.demoapp.feature_jobs.presentation.screens.AvailableJobsScreen
+import com.demoapp.feature_jobs.presentation.screens.JobChatScreen
+import com.demoapp.feature_jobs.presentation.screens.WalletScreen
+import com.demoapp.feature_jobs.presentation.models.JobData
+import com.demoapp.feature_jobs.presentation.models.JobStatus
+import com.demoapp.feature_jobs.data.JobRepositorySingleton
+import com.demoapp.feature_jobs.data.TaskRepository
+import com.demoapp.feature_jobs.data.FirebaseChatRepository
+import com.demoapp.feature_jobs.data.NotificationRepository
+import com.demoapp.core.ui.LanguageAwareActivity
+import com.demoapp.core.ui.LanguageManager
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.demoapp.feature_jobs.presentation.flows.RegistrationFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.TaskRequestFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.WhatsAppPaymentFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.WorkerNotificationFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.TaskExecutionFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.PaymentCompletionFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.DeliveryFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.ShoppingFlowScreen
+import com.demoapp.feature_jobs.presentation.flows.TestFlowScreen
+import com.demoapp.feature_jobs.presentation.screens.JobValidationChatbotScreen
+import com.demoapp.ui.theme.DemoAppTheme
+
+class MainActivity : LanguageAwareActivity() {
+    
+    private fun isOnboardingCompleted(): Boolean {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        return prefs.getBoolean("onboarding_completed", false)
+    }
+    
+    private fun setOnboardingCompleted() {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        prefs.edit().putBoolean("onboarding_completed", true).apply()
+    }
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // Initialize Firebase Auth with anonymous sign-in
+        val auth = Firebase.auth
+        if (auth.currentUser == null) {
+            auth.signInAnonymously()
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        // Initialize sample data after authentication
+                        JobRepositorySingleton.instance.initializeSampleData()
+                        TaskRepository.getInstance().initializeSampleData()
+                        NotificationRepository.getInstance().initializeSampleNotifications()
+                        
+                        // Initialize Firebase chat data in a coroutine
+                        GlobalScope.launch {
+                            FirebaseChatRepository.getInstance().initializeSampleData()
+                        }
+                    } else {
+                        // Fallback: initialize data anyway (for development)
+                        JobRepositorySingleton.instance.initializeSampleData()
+                        TaskRepository.getInstance().initializeSampleData()
+                        NotificationRepository.getInstance().initializeSampleNotifications()
+                        
+                        GlobalScope.launch {
+                            FirebaseChatRepository.getInstance().initializeSampleData()
+                        }
+                    }
+                }
+        } else {
+            // User already authenticated, initialize data
+            JobRepositorySingleton.instance.initializeSampleData()
+            TaskRepository.getInstance().initializeSampleData()
+            NotificationRepository.getInstance().initializeSampleNotifications()
+            
+            GlobalScope.launch {
+                FirebaseChatRepository.getInstance().initializeSampleData()
+            }
+        }
+        
+        setContent {
+            DemoAppTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val navController = rememberNavController()
+                    
+                    
+                    NavHost(
+                        navController = navController,
+                        startDestination = "onboarding"
+                    ) {
+                        composable("onboarding") {
+                            OnboardingScreen(
+                                onGetStartedClick = { 
+                                    // Navigate to auth screen
+                                    navController.navigate("auth")
+                                }
+                            )
+                        }
+                        
+                        composable("auth") {
+                            LoginScreen(
+                                onLoginSuccess = { navController.navigate("client_dashboard") },
+                                onRegisterClick = { navController.navigate("register") }
+                            )
+                        }
+                        
+                        composable("register") {
+                            RegisterScreen(
+                                onRegisterSuccess = { navController.navigate("client_dashboard") },
+                                onLoginClick = { navController.navigate("auth") }
+                            )
+                        }
+                        
+                        composable("client_dashboard") {
+                            ClientDashboardScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("worker_dashboard") {
+                            WorkerDashboardScreen(
+                                navController = navController,
+                                workerId = "worker_1" // Default worker ID for demo
+                            )
+                        }
+                        
+                        composable("post_job") {
+                            PostJobScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("job_request_flow/{jobType}") { backStackEntry ->
+                            val jobType = backStackEntry.arguments?.getString("jobType")
+                            TaskRequestFlowScreen(
+                                navController = navController,
+                                jobType = jobType
+                            )
+                        }
+                        
+                        composable("job_request_flow") {
+                            TaskRequestFlowScreen(
+                                navController = navController,
+                                jobType = null
+                            )
+                        }
+                        
+                        composable("worker_notification_flow") {
+                            WorkerNotificationFlowScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("specific_task_creation") {
+                            SpecificTaskCreationScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("job_validation_chatbot/{jobType}/{jobId}") { backStackEntry ->
+                            val jobType = backStackEntry.arguments?.getString("jobType") ?: "Shopping"
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            val jobData = com.demoapp.feature_jobs.presentation.models.JobData(
+                                id = jobId,
+                                title = "Job Validation",
+                                description = "Validating job requirements",
+                                pay = 0.0,
+                                distance = 0.0,
+                                deadline = "",
+                                jobType = jobType,
+                                status = com.demoapp.feature_jobs.presentation.models.JobStatus.DRAFT
+                            )
+                            JobValidationChatbotScreen(
+                                navController = navController,
+                                jobType = jobType,
+                                initialJobData = jobData
+                            )
+                        }
+                        
+                        composable("worker_job_flow/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: "default_job"
+                            TaskExecutionFlowScreen(
+                                navController = navController,
+                                taskId = jobId
+                            )
+                        }
+                        
+                        composable("payment_qr/{taskId}") { backStackEntry ->
+                            val taskId = backStackEntry.arguments?.getString("taskId") ?: "default_task"
+                            WhatsAppPaymentFlowScreen(
+                                navController = navController,
+                                taskId = taskId
+                            )
+                        }
+                        
+                        // Registration Flows
+                        composable("register_worker") {
+                            RegistrationFlowScreen(
+                                navController = navController,
+                                isWorker = true
+                            )
+                        }
+                        
+                        composable("register_job_request") {
+                            RegistrationFlowScreen(
+                                navController = navController,
+                                isWorker = false
+                            )
+                        }
+                        
+                        // Task Request Flow
+                        composable("task_request_flow") {
+                            TaskRequestFlowScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        // Worker Notification Flow
+                        composable("worker_notification_flow") {
+                            WorkerNotificationFlowScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        // Task Execution Flow
+                        composable("task_execution_flow/{taskId}") { backStackEntry ->
+                            val taskId = backStackEntry.arguments?.getString("taskId") ?: "default_task"
+                            TaskExecutionFlowScreen(
+                                navController = navController,
+                                taskId = taskId
+                            )
+                        }
+                        
+                        // Payment Completion Flow
+                        composable("payment_completion/{taskId}") { backStackEntry ->
+                            val taskId = backStackEntry.arguments?.getString("taskId") ?: "default_task"
+                            PaymentCompletionFlowScreen(
+                                navController = navController,
+                                taskId = taskId
+                            )
+                        }
+                        
+                        // Delivery Flow
+                        composable("delivery_flow/{taskId}") { backStackEntry ->
+                            val taskId = backStackEntry.arguments?.getString("taskId") ?: "default_task"
+                            DeliveryFlowScreen(
+                                navController = navController,
+                                taskId = taskId
+                            )
+                        }
+                        
+                        // Shopping Flow
+                        composable("shopping_flow/{taskId}") { backStackEntry ->
+                            val taskId = backStackEntry.arguments?.getString("taskId") ?: "default_task"
+                            ShoppingFlowScreen(
+                                navController = navController,
+                                taskId = taskId
+                            )
+                        }
+                        
+                        // Test Flow
+                        composable("test_flows") {
+                            TestFlowScreen(navController = navController)
+                        }
+                        
+                        
+                        composable("my_tasks") {
+                            MyTasksScreen(
+                                navController = navController,
+                                workerId = "worker_1" // Default worker ID for demo
+                            )
+                        }
+
+                        composable("my_posted_jobs") {
+                            MyPostedJobsScreen(
+                                navController = navController
+                            )
+                        }
+
+                        composable("job_applicants/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            JobApplicantsScreen(
+                                jobId = jobId,
+                                navController = navController
+                            )
+                        }
+
+                        composable("notifications") {
+                            NotificationsScreen(
+                                userId = "client_mary_johnson",
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("worker_notifications") {
+                            WorkerNotificationsScreen(
+                                workerId = "worker_1", // Default worker ID for demo
+                                navController = navController
+                            )
+                        }
+
+                        composable("wallet") {
+                            WalletScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("available_jobs") {
+                            AvailableJobsScreen(
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("job_details/{jobTitle}") { backStackEntry ->
+                            val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: ""
+                            val jobData = JobRepositorySingleton.instance.getJobByTitle(jobTitle)
+                            if (jobData != null) {
+                                JobDetailsScreen(
+                                    jobData = jobData.copy(id = jobTitle),
+                                    navController = navController
+                                )
+                            } else {
+                                // Fallback: navigate back to worker dashboard if job not found
+                                LaunchedEffect(Unit) {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+                        
+                        composable("job_chat/{jobTitle}") { backStackEntry ->
+                            val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: ""
+                            JobChatScreen(
+                                navController = navController,
+                                jobTitle = jobTitle,
+                                currentUserId = "worker_john_kamau",
+                                currentUserType = com.demoapp.feature_jobs.data.SenderType.WORKER,
+                                currentUserName = "John Kamau"
+                            )
+                        }
+                        
+                        composable("create_invoice/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            CreateInvoiceScreen(
+                                jobId = jobId,
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("job_start_chatbot/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            JobStartChatbotScreen(
+                                jobId = jobId,
+                                workerId = "worker_1", // This should be the specific worker who was selected
+                                navController = navController
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

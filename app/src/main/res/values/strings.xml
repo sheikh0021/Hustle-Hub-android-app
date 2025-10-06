@@ -1,0 +1,66 @@
+<resources>
+    <string name="app_name">HustleHub</string>
+    
+    <!-- Dashboard -->
+    <string name="job_request_dashboard">Job Request Dashboard</string>
+    <string name="worker_dashboard">Worker Dashboard</string>
+    <string name="job_request">Job Request</string>
+    <string name="worker">Worker</string>
+    
+    <!-- Job Assistant -->
+    <string name="job_assistant" translatable="false">Job Assistant</string>
+    <string name="chat_with_assistant" translatable="false">Chat with Assistant</string>
+    <string name="assistant_description" translatable="false">Need help with a job? Ask our assistant for guidance, tips, or clarification on job requirements.</string>
+    
+    <!-- Job Creation -->
+    <string name="create_task" translatable="false">Create Task</string>
+    <string name="specific_task_creation" translatable="false">Create specific task with exact goods, brand, and price</string>
+    <string name="task_description" translatable="false">Task Description</string>
+    <string name="goods_details" translatable="false">Goods Details</string>
+    <string name="brand" translatable="false">Brand</string>
+    <string name="price" translatable="false">Price</string>
+    <string name="quantity" translatable="false">Quantity</string>
+    <string name="store_location" translatable="false">Store Location</string>
+    <string name="delivery_location" translatable="false">Delivery Location</string>
+    
+    <!-- Payment -->
+    <string name="payment_qr_code" translatable="false">Submit QR Code of Payment</string>
+    <string name="temporary_payment" translatable="false">Temporary Payment</string>
+    <string name="cc_team_confirmation" translatable="false">CC Team Confirmation</string>
+    <string name="payment_confirmed" translatable="false">Payment Confirmed</string>
+    <string name="payment_pending" translatable="false">Payment Pending</string>
+    
+    <!-- Worker Flow -->
+    <string name="job_notification" translatable="false">Job Notification</string>
+    <string name="accept_job" translatable="false">Accept Job</string>
+    <string name="execute_task" translatable="false">Execute Task</string>
+    <string name="confirm_delivery" translatable="false">Confirm Delivery</string>
+    <string name="task_completed" translatable="false">Task Completed</string>
+    <string name="worker_at_store" translatable="false">Worker at Store</string>
+    <string name="take_pictures" translatable="false">Take Pictures</string>
+    <string name="confirm_with_client" translatable="false">Confirm with Client</string>
+    <string name="buy_goods" translatable="false">Buy Goods</string>
+    <string name="deliver_goods" translatable="false">Deliver Goods</string>
+    
+    <!-- Communication -->
+    <string name="chat_with_job_requester" translatable="false">Chat with Job Requester</string>
+    <string name="track_progress" translatable="false">Track progress, chat with job requesters, update status</string>
+    <string name="worker_client_communication" translatable="false">Worker-Client Communication</string>
+    
+    <!-- Payment Transfer -->
+    <string name="payment_transfer_to_worker" translatable="false">Payment Transfer to Worker</string>
+    <string name="task_completion_payment" translatable="false">Task Completion Payment</string>
+    
+    <!-- General -->
+    <string name="balance">Balance</string>
+    <string name="search_jobs">Search for jobs...</string>
+    <string name="available_jobs">Available Jobs</string>
+    <string name="my_jobs">My Jobs</string>
+    <string name="wallet">Wallet</string>
+    
+    <!-- Language Selection -->
+    <string name="select_language">Select Language</string>
+    <string name="choose_your_language">Choose Your Language</string>
+    <string name="choose_preferred_language">Choose your preferred language for the best experience</string>
+    <string name="btn_continue">Continue</string>
+</resources>
