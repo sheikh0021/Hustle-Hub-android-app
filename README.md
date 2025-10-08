@@ -1,4 +1,4 @@
-# DemoApp Android - Job Marketplace
+# HustleHub Android - Job Marketplace
 
 A comprehensive Android application built with Kotlin and Jetpack Compose that serves as a job marketplace connecting clients with workers for various tasks.
 
