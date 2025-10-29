@@ -41,6 +41,7 @@ android {
 dependencies {
     implementation(project(":core_ui"))
     implementation(project(":core_network"))
+    implementation(project(":feature_auth"))
     
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
@@ -53,6 +54,10 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.5")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    
+    // Retrofit for API calls
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     
     // Firebase dependencies
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))

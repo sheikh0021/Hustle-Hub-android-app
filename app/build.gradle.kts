@@ -82,6 +82,19 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    
+    // AWS S3 dependencies - Commented out for now, will be configured later
+    // implementation("com.amazonaws:aws-android-sdk-s3:2.70.0")
+    // implementation("com.amazonaws:aws-android-sdk-core:2.70.0")
+    // implementation("com.amazonaws:aws-android-sdk-cognito:2.70.0")
+    // implementation("com.amazonaws:aws-android-sdk-cognitoidentityprovider:2.70.0")
+    
+    // Image picker and camera
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("androidx.activity:activity-ktx:1.8.2")
+    
+    // Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.domain.models.TaskData
 import kotlinx.coroutines.delay
@@ -27,7 +28,8 @@ fun ShoppingFlowScreen(
     navController: NavController,
     taskId: String
 ) {
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     var task by remember { mutableStateOf<TaskData?>(null) }
     var currentStep by remember { mutableStateOf(ShoppingStep.AT_STORE) }
     var showPhotoDialog by remember { mutableStateOf(false) }

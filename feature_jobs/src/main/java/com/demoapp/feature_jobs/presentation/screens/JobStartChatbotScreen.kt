@@ -53,7 +53,10 @@ fun JobStartChatbotScreen(
     val chatbots by chatbotRepository.chatbots.collectAsState()
     LaunchedEffect(chatbots) {
         chatbot = chatbotRepository.getChatbotForJob(jobId, workerId)
-        if (chatbot?.isCompleted == true) {
+        
+        // Check if chatbot is completed
+        val completedChatbot = chatbotRepository.getCompletedChatbotForJob(jobId, workerId)
+        if (completedChatbot != null && !showCompletionDialog) {
             showCompletionDialog = true
         }
     }
@@ -282,7 +285,15 @@ fun JobStartChatbotScreen(
                 Button(
                     onClick = {
                         showCompletionDialog = false
-                        navController.navigate("my_tasks")
+                        // Navigate to job chat timeline instead of my_tasks
+                        job?.let { jobData ->
+                            navController.navigate("job_chat/${jobData.title}") {
+                                // Clear the back stack to prevent going back to validation
+                                popUpTo("my_tasks") { inclusive = false }
+                            }
+                        } ?: run {
+                            navController.navigate("my_tasks")
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary

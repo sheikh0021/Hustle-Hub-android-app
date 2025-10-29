@@ -22,12 +22,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.demoapp.feature_auth.presentation.screens.LoginScreen
 import com.demoapp.feature_auth.presentation.screens.RegisterScreen
+import com.demoapp.feature_auth.presentation.screens.ProfilePhotoUploadScreen
 import com.demoapp.feature_onboarding.presentation.screens.OnboardingScreen
 import com.demoapp.feature_jobs.presentation.screens.ClientDashboardScreen
 import com.demoapp.feature_jobs.presentation.screens.WorkerDashboardScreen
 import com.demoapp.feature_jobs.presentation.screens.PostJobScreen
+import com.demoapp.feature_jobs.presentation.screens.EnhancedJobPostingScreen
+import com.demoapp.feature_jobs.presentation.screens.EnhancedJobBrowsingScreen
+import com.demoapp.feature_jobs.presentation.screens.EnhancedContractorSelectionScreen
+import com.demoapp.feature_jobs.presentation.screens.JobApplicationsScreen
+import com.demoapp.feature_jobs.presentation.screens.JobPosterDashboardScreen
 import com.demoapp.feature_jobs.presentation.screens.SpecificTaskCreationScreen
 import com.demoapp.feature_jobs.presentation.screens.WorkerJobFlowScreen
 import com.demoapp.feature_jobs.presentation.screens.PaymentQRCodeScreen
@@ -37,6 +44,8 @@ import com.demoapp.feature_jobs.presentation.screens.MyTasksScreen
 import com.demoapp.feature_jobs.presentation.screens.MyPostedJobsScreen
 import com.demoapp.feature_jobs.presentation.screens.JobApplicantsScreen
 import com.demoapp.feature_jobs.presentation.screens.NotificationsScreen
+import com.demoapp.feature_jobs.presentation.screens.ContractorApplicationScreen
+import com.demoapp.feature_jobs.presentation.screens.MyApplicationsScreen
 import com.demoapp.feature_jobs.presentation.screens.JobDetailsScreen
 import com.demoapp.feature_jobs.presentation.screens.CreateInvoiceScreen
 import com.demoapp.feature_jobs.presentation.screens.JobStartChatbotScreen
@@ -92,7 +101,7 @@ class MainActivity : LanguageAwareActivity() {
                     if (task.isSuccessful) {
                         // Initialize sample data after authentication
                         JobRepositorySingleton.instance.initializeSampleData()
-                        TaskRepository.getInstance().initializeSampleData()
+                        TaskRepository.getInstance(this@MainActivity).initializeSampleData()
                         NotificationRepository.getInstance().initializeSampleNotifications()
                         
                         // Initialize Firebase chat data in a coroutine
@@ -102,7 +111,7 @@ class MainActivity : LanguageAwareActivity() {
                     } else {
                         // Fallback: initialize data anyway (for development)
                         JobRepositorySingleton.instance.initializeSampleData()
-                        TaskRepository.getInstance().initializeSampleData()
+                        TaskRepository.getInstance(this@MainActivity).initializeSampleData()
                         NotificationRepository.getInstance().initializeSampleNotifications()
                         
                         GlobalScope.launch {
@@ -113,7 +122,7 @@ class MainActivity : LanguageAwareActivity() {
         } else {
             // User already authenticated, initialize data
             JobRepositorySingleton.instance.initializeSampleData()
-            TaskRepository.getInstance().initializeSampleData()
+            TaskRepository.getInstance(this).initializeSampleData()
             NotificationRepository.getInstance().initializeSampleNotifications()
             
             GlobalScope.launch {
@@ -129,6 +138,11 @@ class MainActivity : LanguageAwareActivity() {
                 ) {
                     val navController = rememberNavController()
                     
+                    // Log current route changes
+                    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+                    LaunchedEffect(currentBackStackEntry) {
+                        android.util.Log.d("MainActivity", "Current route changed to: ${currentBackStackEntry?.destination?.route}")
+                    }
                     
                     NavHost(
                         navController = navController,
@@ -145,7 +159,20 @@ class MainActivity : LanguageAwareActivity() {
                         
                         composable("auth") {
                             LoginScreen(
-                                onLoginSuccess = { navController.navigate("client_dashboard") },
+                                onLoginSuccess = { 
+                                    android.util.Log.d("MainActivity", "onLoginSuccess callback called, navigating to client_dashboard")
+                                    try {
+                                        navController.navigate("client_dashboard") {
+                                            // Pop all screens up to onboarding (but keep onboarding)
+                                            popUpTo("onboarding") { inclusive = false }
+                                            // Prevent multiple instances of dashboard
+                                            launchSingleTop = true
+                                        }
+                                        android.util.Log.d("MainActivity", "Navigation to client_dashboard completed")
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("MainActivity", "Navigation error", e)
+                                    }
+                                },
                                 onRegisterClick = { navController.navigate("register") }
                             )
                         }
@@ -153,11 +180,23 @@ class MainActivity : LanguageAwareActivity() {
                         composable("register") {
                             RegisterScreen(
                                 onRegisterSuccess = { navController.navigate("client_dashboard") },
-                                onLoginClick = { navController.navigate("auth") }
+                                onLoginClick = { navController.navigate("auth") },
+                                onProfilePhotoClick = { token -> 
+                                    navController.navigate("profile_photo_upload/$token")
+                                }
+                            )
+                        }
+                        
+                        composable("profile_photo_upload/{token}") { backStackEntry ->
+                            val token = backStackEntry.arguments?.getString("token") ?: ""
+                            ProfilePhotoUploadScreen(
+                                navController = navController,
+                                authToken = token
                             )
                         }
                         
                         composable("client_dashboard") {
+                            android.util.Log.d("MainActivity", "ClientDashboardScreen composable being created")
                             ClientDashboardScreen(
                                 navController = navController
                             )
@@ -355,6 +394,79 @@ class MainActivity : LanguageAwareActivity() {
                             AvailableJobsScreen(
                                 navController = navController
                             )
+                        }
+                        
+                        composable("contractor_application/{jobId}/{jobTitle}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: ""
+                            ContractorApplicationScreen(
+                                jobId = jobId,
+                                jobTitle = jobTitle,
+                                navController = navController
+                            )
+                        }
+                        
+                        composable("my_applications") {
+                            MyApplicationsScreen(navController = navController)
+                        }
+                        
+                        // Enhanced Workflow Screens
+                        composable("enhanced_job_posting") {
+                            EnhancedJobPostingScreen(navController = navController)
+                        }
+                        
+                        composable("enhanced_job_browsing") {
+                            EnhancedJobBrowsingScreen(navController = navController)
+                        }
+                        
+    composable("enhanced_contractor_selection/{jobId}/{jobTitle}") { backStackEntry ->
+        val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+        val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: ""
+        EnhancedContractorSelectionScreen(
+            jobId = jobId,
+            jobTitle = jobTitle,
+            navController = navController
+        )
+    }
+
+    composable("job_applications/{jobId}/{jobTitle}") { backStackEntry ->
+        val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+        val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: ""
+        JobApplicationsScreen(
+            jobId = jobId,
+            jobTitle = jobTitle,
+            navController = navController
+        )
+    }
+
+    composable("job_poster_dashboard") {
+        JobPosterDashboardScreen(navController = navController)
+    }
+                        
+                        // Workflow Management Screens
+                        composable("workflow_progress/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            // TODO: Get job data and navigate to WorkflowProgressScreen
+                        }
+                        
+                        composable("evidence_upload/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            // TODO: Get job data and navigate to EvidenceUploadScreen
+                        }
+                        
+                        composable("client_confirmation/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            // TODO: Get job data and navigate to ClientConfirmationScreen
+                        }
+                        
+                        composable("payment_processing/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            // TODO: Get job data and navigate to PaymentProcessingScreen
+                        }
+                        
+                        composable("receipt_confirmation/{jobId}") { backStackEntry ->
+                            val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                            // TODO: Get job data and navigate to ReceiptConfirmationScreen
                         }
                         
                         composable("job_details/{jobTitle}") { backStackEntry ->

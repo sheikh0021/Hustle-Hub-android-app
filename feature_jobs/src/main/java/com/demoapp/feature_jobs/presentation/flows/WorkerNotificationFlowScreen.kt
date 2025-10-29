@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.demoapp.feature_jobs.domain.models.*
+import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.domain.models.TaskData
 import kotlinx.coroutines.delay
@@ -28,7 +29,8 @@ import kotlinx.coroutines.launch
 fun WorkerNotificationFlowScreen(
     navController: NavController
 ) {
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     var availableTasks by remember { mutableStateOf<List<TaskData>>(emptyList()) }
     val coroutineScope = rememberCoroutineScope()
     

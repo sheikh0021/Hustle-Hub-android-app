@@ -17,9 +17,11 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.demoapp.feature_jobs.domain.models.PaymentStatus
 import com.demoapp.feature_jobs.domain.models.TaskStatus
+import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.data.TaskRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,12 +29,14 @@ fun WhatsAppPaymentFlowScreen(
     navController: NavController,
     taskId: String
 ) {
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     
     var paymentStatus by remember { mutableStateOf(PaymentStatus.PENDING) }
     var showQRCode by remember { mutableStateOf(true) }
     var uploadedProof by remember { mutableStateOf(false) }
     var ccTeamConfirmed by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Simulate CC team confirmation after 10 seconds
     LaunchedEffect(uploadedProof) {
@@ -42,18 +46,20 @@ fun WhatsAppPaymentFlowScreen(
             paymentStatus = PaymentStatus.CONFIRMED
             
             // Update task status to AVAILABLE for workers to see
-            try {
-                val task = taskRepository.getTaskById(taskId)
-                task?.let {
-                    val updatedTask = it.copy(
-                        status = TaskStatus.AVAILABLE,
-                        paymentStatus = PaymentStatus.CONFIRMED
-                    )
-                    taskRepository.updateTask(updatedTask)
+            coroutineScope.launch {
+                try {
+                    val task = taskRepository.getTaskById(taskId)
+                    task?.let { currentTask ->
+                        val updatedTask = currentTask.copy(
+                            status = TaskStatus.AVAILABLE,
+                            paymentStatus = PaymentStatus.CONFIRMED
+                        )
+                        taskRepository.updateTask(updatedTask)
+                    }
+                } catch (e: Exception) {
+                    // Handle any potential errors silently
+                    android.util.Log.e("WhatsAppPaymentFlow", "Error updating task: ${e.message}")
                 }
-            } catch (e: Exception) {
-                // Handle any potential errors silently
-                println("Error updating task: ${e.message}")
             }
         }
     }

@@ -27,11 +27,15 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +44,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,15 +52,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.demoapp.feature_jobs.presentation.models.JobData
 import com.demoapp.feature_jobs.presentation.models.JobStatus
-import com.demoapp.feature_jobs.data.JobRepositorySingleton
+import com.demoapp.feature_jobs.data.JobApplicationRepository
+import com.demoapp.feature_jobs.presentation.models.JobApplication
+import com.demoapp.feature_jobs.presentation.models.ApplicationStatus
+import com.demoapp.feature_jobs.presentation.components.WithdrawalConfirmationDialog
+import com.demoapp.feature_jobs.presentation.viewmodels.MyTasksViewModel
 
 @Composable
 fun MyTasksScreen(
@@ -63,20 +74,27 @@ fun MyTasksScreen(
     navController: NavController,
     workerId: String = "worker_1" // Default worker ID for demo
 ) {
+    val context = LocalContext.current
+    val viewModel: MyTasksViewModel = viewModel { MyTasksViewModel(context) }
+    val uiState by viewModel.uiState.collectAsState()
+    
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Active", "Applied", "Completed", "Cancelled")
     var cancellationReason by remember { mutableStateOf("") }
     var showCancellationDialog by remember { mutableStateOf(false) }
     var jobToCancel by remember { mutableStateOf<JobData?>(null) }
     
-    val repository = JobRepositorySingleton.instance
-    val allJobs by repository.jobs.collectAsState()
+    // Get job applications for the current worker
+    val applicationRepository = JobApplicationRepository.getInstance()
+    val allApplications by applicationRepository.applications.collectAsState()
+    val myApplications = allApplications.filter { it.workerId == "worker_current_user" }
     
-    // Filter jobs for this specific worker
-    val jobs = allJobs.filter { job ->
-        // Show jobs that are assigned to this worker OR jobs this worker has applied to
-        job.workerId == workerId || 
-        (job.status == JobStatus.APPLIED && job.workerAccepted) // This might need adjustment based on your logic
+    // Handle errors
+    uiState.error?.let { error ->
+        LaunchedEffect(error) {
+            // Error will be shown via UI state
+            viewModel.clearError()
+        }
     }
     
     Column(
@@ -108,6 +126,21 @@ fun MyTasksScreen(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 4.dp)
             )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Refresh Button
+            IconButton(
+                onClick = { viewModel.refreshTasks() },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Refresh",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         
         Spacer(modifier = Modifier.height(16.dp))
@@ -157,18 +190,73 @@ fun MyTasksScreen(
         
         Spacer(modifier = Modifier.height(12.dp))
         
-        // Tab Content
-        when (selectedTabIndex) {
-            0 -> ActiveJobsTab(jobs, navController, onCancelJob = { job ->
-                jobToCancel = job
-                showCancellationDialog = true
-            })
-            1 -> AppliedJobsTab(jobs, navController, onCancelJob = { job ->
-                jobToCancel = job
-                showCancellationDialog = true
-            })
-            2 -> CompletedJobsTab(jobs, navController)
-            3 -> CancelledJobsTab(jobs, navController)
+        // Loading State
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Loading tasks...",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        } else {
+            // Error State
+            uiState.error?.let { error ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Error loading tasks",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { viewModel.refreshTasks() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
+            
+            // Tab Content
+            when (selectedTabIndex) {
+                0 -> ActiveJobsTab(uiState.activeTasks, navController, onCancelJob = { job ->
+                    jobToCancel = job
+                    showCancellationDialog = true
+                })
+                1 -> AppliedJobsTab(myApplications, navController, applicationRepository)
+                2 -> CompletedJobsTab(uiState.completedTasks, navController)
+                3 -> CancelledJobsTab(uiState.cancelledTasks, navController)
+            }
         }
     }
     
@@ -181,7 +269,8 @@ fun MyTasksScreen(
                 cancellationReason = ""
             },
             onConfirm = { reason ->
-                repository.cancelJobByTitle(jobToCancel!!.title, reason)
+                // TODO: Implement task cancellation API call
+                // For now, just close the dialog
                 showCancellationDialog = false
                 jobToCancel = null
                 cancellationReason = ""
@@ -268,20 +357,21 @@ private fun ActiveJobsTab(
 
 @Composable
 private fun AppliedJobsTab(
-    jobs: List<JobData>,
+    applications: List<JobApplication>,
     navController: NavController,
-    onCancelJob: (JobData) -> Unit
+    applicationRepository: JobApplicationRepository
 ) {
-    val appliedJobs = jobs.filter { it.status == JobStatus.APPLIED }
+    var showWithdrawDialog by remember { mutableStateOf(false) }
+    var selectedApplicationToWithdraw by remember { mutableStateOf<JobApplication?>(null) }
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (appliedJobs.isEmpty()) {
+        if (applications.isEmpty()) {
             item {
                 Text(
-                    text = "No applied jobs",
+                    text = "No applications yet",
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
@@ -291,14 +381,30 @@ private fun AppliedJobsTab(
                 )
             }
         } else {
-            items(appliedJobs) { job ->
-                JobCard(
-                    job = job,
+            items(applications) { application ->
+                ApplicationCard(
+                    application = application,
                     navController = navController,
-                    onCancelJob = onCancelJob
+                    onWithdraw = {
+                        selectedApplicationToWithdraw = application
+                        showWithdrawDialog = true
+                    }
                 )
             }
         }
+    }
+    
+    // Withdrawal Confirmation Dialog
+    selectedApplicationToWithdraw?.let { application ->
+        WithdrawalConfirmationDialog(
+            jobTitle = "Job Application", // This should come from job data
+            onConfirm = {
+                applicationRepository.withdrawApplication(application.jobId, application.workerId)
+                showWithdrawDialog = false
+                selectedApplicationToWithdraw = null
+            },
+            onDismiss = { showWithdrawDialog = false }
+        )
     }
 }
 
@@ -479,7 +585,7 @@ private fun JobCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = "$${String.format("%.1f", job.pay)}",
+                        text = "KES ${String.format("%.0f", job.pay)}",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -681,7 +787,7 @@ private fun CancelledJobCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = "$${String.format("%.0f", job.pay)}",
+                        text = "KES ${String.format("%.0f", job.pay)}",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onErrorContainer
@@ -739,5 +845,117 @@ private fun CancelledJobCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ApplicationCard(
+    application: JobApplication,
+    navController: NavController,
+    onWithdraw: (() -> Unit)?
+) {
+    val (statusColor, statusText, statusIcon) = when (application.status) {
+        ApplicationStatus.PENDING -> Triple(Color(0xFFFFC107), "Pending", Icons.Default.Warning)
+        ApplicationStatus.SELECTED -> Triple(Color(0xFF4CAF50), "Selected", Icons.Default.CheckCircle)
+        ApplicationStatus.REJECTED -> Triple(Color(0xFFF44336), "Rejected", Icons.Default.Close)
+        ApplicationStatus.WITHDRAWN -> Triple(Color(0xFF9E9E9E), "Withdrawn", Icons.Default.Close)
+        else -> Triple(MaterialTheme.colorScheme.primary, "Unknown", Icons.Default.Settings)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Job Application",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Applied: ${getTimeAgo(application.appliedAt)}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+                
+                // Status Badge
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = statusColor),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = statusIcon,
+                            contentDescription = statusText,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Text(
+                            text = statusText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            application.applicationMessage?.let {
+                Text(
+                    text = "Your Message: \"$it\"",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Withdraw button for pending applications
+            if (onWithdraw != null && application.status == ApplicationStatus.PENDING) {
+                Button(
+                    onClick = onWithdraw,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Withdraw Application")
+                }
+            }
+        }
+    }
+}
+
+// Helper function for time ago calculation
+private fun getTimeAgo(date: java.util.Date): String {
+    val now = java.util.Date()
+    val diffInMillis = now.time - date.time
+    val diffInMinutes = diffInMillis / (1000 * 60)
+    val diffInHours = diffInMinutes / 60
+    val diffInDays = diffInHours / 24
+
+    return when {
+        diffInMinutes < 1 -> "Just now"
+        diffInMinutes < 60 -> "$diffInMinutes minutes ago"
+        diffInHours < 24 -> "$diffInHours hours ago"
+        diffInDays < 7 -> "$diffInDays days ago"
+        else -> "${diffInDays / 7} weeks ago"
     }
 }

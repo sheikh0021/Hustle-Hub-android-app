@@ -57,12 +57,7 @@ class JobStartChatbotRepository {
     fun submitAnswer(chatbotId: String, questionId: String, answer: String): Boolean {
         val currentAnswers = _answers.value.toMutableList()
         val existingAnswerIndex = currentAnswers.indexOfFirst { 
-            it.questionId == questionId && 
-            currentAnswers.any { answer -> 
-                _chatbots.value.any { chatbot -> 
-                    chatbot.id == chatbotId && chatbot.questions.any { q -> q.id == questionId }
-                }
-            }
+            it.questionId == questionId
         }
         
         val newAnswer = ChatbotAnswer(

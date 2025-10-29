@@ -13,12 +13,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.data.TaskRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TestFlowScreen(navController: NavController) {
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     
     Scaffold(
         topBar = {

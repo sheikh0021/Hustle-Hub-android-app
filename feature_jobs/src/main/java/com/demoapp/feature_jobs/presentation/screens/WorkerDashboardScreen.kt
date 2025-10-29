@@ -106,6 +106,40 @@ fun WorkerDashboardScreen(
             }
         }
         
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Secondary Actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Notifications Button
+            OutlinedButton(
+                onClick = { navController.navigate("worker_notifications") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Notifications",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            
+            // Placeholder for future functionality
+            OutlinedButton(
+                onClick = { /* Future functionality */ },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Settings",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        
         Spacer(modifier = Modifier.height(32.dp))
         
         // Status Card

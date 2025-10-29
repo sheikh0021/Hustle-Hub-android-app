@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,8 @@ import com.demoapp.feature_jobs.data.JobRepositorySingleton
 import com.demoapp.feature_jobs.data.FirebaseChatRepository
 import com.demoapp.feature_jobs.data.FirebaseChatMessage
 import com.demoapp.feature_jobs.data.SenderType
+import com.demoapp.feature_jobs.data.JobApplicationRepository
+import com.demoapp.feature_jobs.presentation.models.ApplicationStatus
 import com.demoapp.feature_jobs.presentation.components.JobTimelineComponent
 import com.demoapp.feature_jobs.presentation.components.WorkerActionButtons
 import com.demoapp.feature_jobs.presentation.models.TimelineStage
@@ -45,8 +48,16 @@ fun JobChatScreen(
     val context = LocalContext.current
     val jobRepository = JobRepositorySingleton.instance
     val firebaseChatRepository = FirebaseChatRepository.getInstance()
+    val applicationRepository = JobApplicationRepository.getInstance()
     val jobs by jobRepository.jobs.collectAsState()
     val job = jobs.find { it.title == jobTitle }
+    
+    // Check if contractor is selected for this job
+    val isSelected = remember { 
+        job?.let { 
+            applicationRepository.isContractorSelectedForJob(it.id, currentUserId)
+        } ?: false
+    }
     
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -178,12 +189,46 @@ fun JobChatScreen(
             }
         }
         
-        // Chat Input
+        // Communication restriction banner for non-selected contractors
+        if (!isSelected && currentUserType == SenderType.WORKER) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Info",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Communication is only available after you are selected for this job.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Chat Input (only enabled if contractor is selected)
         ChatInputArea(
             messageText = messageText,
             onMessageTextChange = { messageText = it },
             onSendMessage = { text ->
-                if (text.isNotBlank() && job != null) {
+                if (text.isNotBlank() && job != null && isSelected) {
                     val newMessage = FirebaseChatMessage(
                         jobId = job.id,
                         text = text,
@@ -197,7 +242,8 @@ fun JobChatScreen(
                         firebaseChatRepository.sendMessage(newMessage)
                     }
                 }
-            }
+            },
+            isEnabled = isSelected
         )
     }
 }
@@ -315,7 +361,8 @@ private fun ChatMessageBubble(
 private fun ChatInputArea(
     messageText: String,
     onMessageTextChange: (String) -> Unit,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    isEnabled: Boolean = true
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -334,8 +381,16 @@ private fun ChatInputArea(
                 value = messageText,
                 onValueChange = onMessageTextChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Type your message...") },
+                placeholder = { 
+                    Text(
+                        if (isEnabled) 
+                            "Type your message..." 
+                        else 
+                            "Chat available after selection"
+                    ) 
+                },
                 singleLine = true,
+                enabled = isEnabled,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
@@ -346,12 +401,12 @@ private fun ChatInputArea(
             
             IconButton(
                 onClick = { onSendMessage(messageText) },
-                enabled = messageText.isNotBlank()
+                enabled = messageText.isNotBlank() && isEnabled
             ) {
                 Icon(
                     Icons.Default.Send,
                     contentDescription = "Send",
-                    tint = if (messageText.isNotBlank())
+                    tint = if (messageText.isNotBlank() && isEnabled)
                         MaterialTheme.colorScheme.primary
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant

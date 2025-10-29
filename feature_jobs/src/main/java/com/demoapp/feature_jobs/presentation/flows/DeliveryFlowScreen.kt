@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.domain.models.TaskData
@@ -27,7 +28,8 @@ fun DeliveryFlowScreen(
     navController: NavController,
     taskId: String
 ) {
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     var task by remember { mutableStateOf<TaskData?>(null) }
     var currentStep by remember { mutableStateOf(DeliveryStep.PICKUP) }
     var showChatDialog by remember { mutableStateOf(false) }

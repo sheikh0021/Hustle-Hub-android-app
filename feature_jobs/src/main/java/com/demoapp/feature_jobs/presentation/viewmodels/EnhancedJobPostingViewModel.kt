@@ -1,11 +1,14 @@
 package com.demoapp.feature_jobs.presentation.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.demoapp.core_network.models.ShoppingItem
 import com.demoapp.feature_jobs.data.OfflineJobRepository
 import com.demoapp.feature_jobs.data.NetworkConnectivityManager
 import com.demoapp.feature_jobs.data.JobCreationResult
 import com.demoapp.feature_jobs.data.JobCancellationResult
+import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.presentation.models.JobData
 import com.demoapp.feature_jobs.presentation.models.JobStatus
 import com.demoapp.feature_jobs.presentation.models.CancellationReasonType
@@ -18,7 +21,8 @@ import kotlinx.coroutines.launch
  */
 class EnhancedJobPostingViewModel(
     private val repository: OfflineJobRepository,
-    private val networkManager: NetworkConnectivityManager
+    private val networkManager: NetworkConnectivityManager,
+    private val taskRepository: TaskRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(JobPostingUiState())
@@ -51,6 +55,91 @@ class EnhancedJobPostingViewModel(
         viewModelScope.launch {
             repository.drafts.collect { draftList ->
                 _drafts.value = draftList
+            }
+        }
+    }
+
+    fun createTask(
+        title: String,
+        taskDescription: String,
+        category: String,
+        storeServiceLocation: String,
+        deliveryLocation: String,
+        budgetKes: Double,
+        dueDate: String,
+        storeServiceLatitude: Double,
+        storeServiceLongitude: Double,
+        deliveryLatitude: Double,
+        deliveryLongitude: Double,
+        shoppingItems: List<ShoppingItem>
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            
+            if (taskRepository == null) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Task repository not initialized"
+                )
+                return@launch
+            }
+            
+            try {
+                val result = taskRepository.createTask(
+                    title = title,
+                    taskDescription = taskDescription,
+                    category = category,
+                    storeServiceLocation = storeServiceLocation,
+                    deliveryLocation = deliveryLocation,
+                    budgetKes = budgetKes,
+                    dueDate = dueDate,
+                    storeServiceLatitude = storeServiceLatitude,
+                    storeServiceLongitude = storeServiceLongitude,
+                    deliveryLatitude = deliveryLatitude,
+                    deliveryLongitude = deliveryLongitude,
+                    shoppingItems = shoppingItems
+                )
+                
+                result.fold(
+                    onSuccess = { response ->
+                        android.util.Log.d("EnhancedJobPostingViewModel", "Task created successfully - ID: ${response.data?.id}")
+                        // Convert API response to JobData for UI
+                        val jobData = response.data?.let { taskData ->
+                            JobData(
+                                id = taskData.id.toString(),
+                                title = taskData.title,
+                                description = taskData.task_description,
+                                pay = taskData.budget_kes,
+                                deadline = taskData.due_date,
+                                jobType = taskData.category,
+                                location = taskData.store_service_location,
+                                status = JobStatus.ACTIVE,
+                                deliveryAddress = taskData.delivery_location,
+                                deliveryLat = taskData.delivery_latitude,
+                                deliveryLng = taskData.delivery_longitude,
+                                distance = 0.0 // TODO: Calculate distance
+                            )
+                        }
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            isJobCreated = true,
+                            createdJob = jobData
+                        )
+                    },
+                    onFailure = { exception ->
+                        android.util.Log.e("EnhancedJobPostingViewModel", "Task creation failed", exception)
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = exception.message ?: "Failed to create task"
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("EnhancedJobPostingViewModel", "Exception creating task", e)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Unknown error occurred"
+                )
             }
         }
     }

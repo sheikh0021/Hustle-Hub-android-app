@@ -13,7 +13,9 @@ data class JobApplication(
     val applicationMessage: String? = null,
     val appliedAt: Date = Date(),
     val status: ApplicationStatus = ApplicationStatus.PENDING,
-    val selectedAt: Date? = null
+    val selectedAt: Date? = null,
+    val rejectedAt: Date? = null,
+    val withdrawnAt: Date? = null
 )
 
 enum class ApplicationStatus {

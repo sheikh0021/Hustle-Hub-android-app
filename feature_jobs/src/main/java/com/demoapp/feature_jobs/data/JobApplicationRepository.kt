@@ -173,6 +173,25 @@ class JobApplicationRepository {
     }
 
     /**
+     * Submit a new application (used by ContractorApplicationScreen)
+     */
+    fun submitApplication(application: JobApplication) {
+        val currentApplications = _applications.value.toMutableList()
+        currentApplications.add(application)
+        _applications.value = currentApplications
+        
+        // Create notification for the job poster
+        val notificationRepository = NotificationRepository.getInstance()
+        notificationRepository.createJobApplicationNotification(
+            jobId = application.jobId,
+            jobTitle = "Job Application", // This should come from job data
+            clientId = "client_placeholder", // This should come from job data
+            workerId = application.workerId,
+            workerName = application.workerName
+        )
+    }
+
+    /**
      * Initialize with sample data for demo purposes
      */
     fun initializeSampleData() {
@@ -246,9 +265,113 @@ class JobApplicationRepository {
                 workerRating = 4.9f,
                 workerCompletedTasks = 38,
                 applicationMessage = "I'm a certified IT technician and can help with WiFi setup."
+            ),
+            // Sample applications for current worker to test withdrawal functionality
+            JobApplication(
+                id = "app_current_1",
+                jobId = "sample_grocery_1",
+                workerId = "worker_current_user",
+                workerName = "John Kamau",
+                workerPhone = "+254700000000",
+                workerRating = 4.5f,
+                workerCompletedTasks = 25,
+                applicationMessage = "I'm available for grocery shopping tasks."
+            ),
+            JobApplication(
+                id = "app_current_2",
+                jobId = "sample_delivery_1",
+                workerId = "worker_current_user",
+                workerName = "John Kamau",
+                workerPhone = "+254700000000",
+                workerRating = 4.5f,
+                workerCompletedTasks = 25,
+                applicationMessage = "I have a motorcycle and can handle delivery tasks."
+            ),
+            JobApplication(
+                id = "app_current_3",
+                jobId = "sample_survey_1",
+                workerId = "worker_current_user",
+                workerName = "John Kamau",
+                workerPhone = "+254700000000",
+                workerRating = 4.5f,
+                workerCompletedTasks = 25,
+                applicationMessage = "I'm experienced with survey tasks.",
+                status = ApplicationStatus.SELECTED
             )
         )
         
         _applications.value = sampleApplications
+    }
+
+    /**
+     * Withdraw a job application (contractor cancels their application)
+     */
+    fun withdrawApplication(jobId: String, workerId: String): Boolean {
+        val currentApplications = _applications.value.toMutableList()
+        val applicationIndex = currentApplications.indexOfFirst { 
+            it.jobId == jobId && it.workerId == workerId 
+        }
+        
+        if (applicationIndex != -1) {
+            val application = currentApplications[applicationIndex]
+            
+            // Only allow withdrawal if application is still pending
+            if (application.status == ApplicationStatus.PENDING) {
+                currentApplications[applicationIndex] = application.copy(
+                    status = ApplicationStatus.WITHDRAWN,
+                    withdrawnAt = java.util.Date()
+                )
+                _applications.value = currentApplications
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Get applications by worker ID
+     */
+    fun getApplicationsByWorker(workerId: String): List<JobApplication> {
+        return _applications.value.filter { it.workerId == workerId }
+    }
+
+    /**
+     * Get pending applications by worker ID
+     */
+    fun getPendingApplicationsByWorker(workerId: String): List<JobApplication> {
+        return _applications.value.filter { 
+            it.workerId == workerId && it.status == ApplicationStatus.PENDING 
+        }
+    }
+
+    /**
+     * Check if a contractor is selected for a specific job
+     */
+    fun isContractorSelectedForJob(jobId: String, workerId: String): Boolean {
+        return _applications.value.any { 
+            it.jobId == jobId && it.workerId == workerId && it.status == ApplicationStatus.SELECTED 
+        }
+    }
+
+    /**
+     * Get selected applications by worker ID
+     */
+    fun getSelectedApplicationsByWorker(workerId: String): List<JobApplication> {
+        return _applications.value.filter { 
+            it.workerId == workerId && it.status == ApplicationStatus.SELECTED 
+        }
+    }
+
+    /**
+     * Update application status
+     */
+    fun updateApplicationStatus(applicationId: String, newStatus: ApplicationStatus) {
+        val currentApplications = _applications.value.toMutableList()
+        val applicationIndex = currentApplications.indexOfFirst { it.id == applicationId }
+        
+        if (applicationIndex != -1) {
+            currentApplications[applicationIndex] = currentApplications[applicationIndex].copy(status = newStatus)
+            _applications.value = currentApplications
+        }
     }
 }

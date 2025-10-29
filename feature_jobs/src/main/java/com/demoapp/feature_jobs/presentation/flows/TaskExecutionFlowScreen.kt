@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.demoapp.feature_jobs.domain.models.*
+import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.domain.models.TaskData
 
@@ -25,7 +26,8 @@ fun TaskExecutionFlowScreen(
     navController: NavController,
     taskId: String
 ) {
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     var task by remember { mutableStateOf<TaskData?>(null) }
     
     LaunchedEffect(taskId) {

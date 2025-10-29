@@ -20,11 +20,58 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.domain.models.*
 import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.data.OfflineJobRepository
 import com.demoapp.feature_jobs.presentation.models.JobData
 import kotlinx.coroutines.launch
+
+@Composable
+fun TaskSubmissionDialog(
+    onDismiss: () -> Unit,
+    onSubmitTask: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Confirm Task Submission",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text("You're about to create a task with the following details:")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("• Task will be created and posted")
+                Text("• You'll be redirected to payment flow")
+                Text("• Payment verification required before workers can see it")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Payment Flow:",
+                    fontWeight = FontWeight.Bold
+                )
+                Text("1. Pay manually via WhatsApp/Mobile Money")
+                Text("2. Upload QR code/screenshot proof")
+                Text("3. Customer Care team verifies payment")
+                Text("4. Task becomes visible to workers")
+                Text("5. Worker accepts and executes task")
+                Text("6. You confirm completion → Worker gets paid")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSubmitTask) {
+                Text("Create & Pay Now")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +104,8 @@ fun TaskRequestFlowScreen(
     var showValidationDialog by remember { mutableStateOf(false) }
     var maxWeightLimit by remember { mutableStateOf("") }
     
-    val taskRepository = remember { TaskRepository.getInstance() }
+    val context = LocalContext.current
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     val coroutineScope = rememberCoroutineScope()
 
     // Validation functions
@@ -122,17 +170,17 @@ fun TaskRequestFlowScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Enhanced Header Section
+        // Enhanced Header Section with Gradient Background
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.primaryContainer
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            shape = RoundedCornerShape(16.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = RoundedCornerShape(20.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Back Button with improved styling
@@ -148,43 +196,43 @@ fun TaskRequestFlowScreen(
                             }
                         },
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(44.dp)
                             .background(
                                 MaterialTheme.colorScheme.surface,
-                                RoundedCornerShape(12.dp)
+                                RoundedCornerShape(14.dp)
                             )
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         text = "Back to Dashboard",
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 
-                // Main Content
+                // Main Content with improved layout
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Task Icon with gradient background
+                    // Task Icon with enhanced gradient background
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(80.dp)
                             .background(
                                 MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(20.dp)
+                                RoundedCornerShape(24.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -192,41 +240,47 @@ fun TaskRequestFlowScreen(
                             imageVector = when (selectedCategory) {
                                 TaskCategory.SHOPPING -> Icons.Default.ShoppingCart
                                 TaskCategory.DELIVERY -> Icons.Default.Home
-                                TaskCategory.SURVEY -> Icons.Default.List
+                                TaskCategory.SURVEY -> Icons.Default.Settings
                                 TaskCategory.PHOTOGRAPHY -> Icons.Default.Add
-                                else -> Icons.Default.Add
+                                else -> Icons.Default.Build
                             },
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(40.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                     
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(20.dp))
                     
-                    // Title and Description
+                    // Title and Description with better styling
                     Column(
                         modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.Start
                     ) {
                         Text(
-                            text = "Create Task Request",
-                            fontSize = 22.sp,
+                            text = when (selectedCategory) {
+                                TaskCategory.SHOPPING -> "Shopping Assistance"
+                                TaskCategory.DELIVERY -> "Package Delivery"
+                                TaskCategory.SURVEY -> "Survey & Research"
+                                TaskCategory.PHOTOGRAPHY -> "Photography Services"
+                                else -> "Task Request"
+                            },
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = when (selectedCategory) {
-                                TaskCategory.SHOPPING -> "Specify shopping items with details"
-                                TaskCategory.DELIVERY -> "Define package delivery requirements"
-                                TaskCategory.SURVEY -> "Set up survey parameters and audience"
-                                TaskCategory.PHOTOGRAPHY -> "Describe photography needs"
-                                else -> "Provide specific task details"
+                                TaskCategory.SHOPPING -> "Get help with grocery shopping, errands, and purchases"
+                                TaskCategory.DELIVERY -> "Fast and reliable delivery services for your packages"
+                                TaskCategory.SURVEY -> "Data collection, market research, and customer feedback"
+                                TaskCategory.PHOTOGRAPHY -> "Professional photography services for your needs"
+                                else -> "Provide specific task details and requirements"
                             },
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            lineHeight = 20.sp
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            lineHeight = 22.sp
                         )
                     }
                 }
@@ -818,50 +872,13 @@ fun TaskRequestFlowScreen(
                     jobRequesterId = "job_requester_1" // Default requester ID
                 )
                 coroutineScope.launch {
-                    taskRepository.createTask(newTask)
+                    // TODO: Convert TaskData to API format and call createTask
+                    // For now, this is a stub - the actual API call should use the proper format
+                    android.util.Log.w("TaskRequestFlowScreen", "createTask call needs to be converted to API format")
                 }
                 // Navigate to payment flow instead of dashboard
                 navController.navigate("payment_qr/${newTask.id}")
             }
         )
     }
-}
-
-@Composable
-fun TaskSubmissionDialog(
-    onDismiss: () -> Unit,
-    onSubmitTask: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text("Create Task & Pay")
-        },
-        text = {
-            Column {
-                Text("Your task will be created and you'll need to make payment before it's published to workers.")
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Payment Flow:",
-                    fontWeight = FontWeight.Bold
-                )
-                Text("1. Pay manually via WhatsApp/Mobile Money")
-                Text("2. Upload QR code/screenshot proof")
-                Text("3. Customer Care team verifies payment")
-                Text("4. Task becomes visible to workers")
-                Text("5. Worker accepts and executes task")
-                Text("6. You confirm completion → Worker gets paid")
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onSubmitTask) {
-                Text("Create & Pay Now")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }

@@ -11,6 +11,9 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,20 +23,60 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.demoapp.feature_auth.presentation.viewmodels.AuthViewModel
+import com.demoapp.feature_auth.data.AuthTokenManager
+import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    onRegisterClick: () -> Unit
+    onRegisterClick: () -> Unit,
+    viewModel: AuthViewModel = viewModel()
 ) {
     var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    
+    // Track if we've already navigated to prevent re-triggering
+    var hasNavigated by remember { mutableStateOf(false) }
+    
+    // Handle login success - use same simple pattern as RegisterScreen
+    LaunchedEffect(uiState.isSuccess) {
+        android.util.Log.d("LoginScreen", "LaunchedEffect triggered - isSuccess: ${uiState.isSuccess}, token: ${if (uiState.token != null) "Present" else "NULL"}, hasNavigated: $hasNavigated")
+        if (uiState.isSuccess && !hasNavigated && uiState.token != null) {
+            android.util.Log.d("LoginScreen", "Login successful - Calling onLoginSuccess()")
+            hasNavigated = true
+            // Save token to SharedPreferences for logout functionality
+            uiState.token?.let { token ->
+                AuthTokenManager.saveToken(context, token)
+                android.util.Log.d("LoginScreen", "Token saved to SharedPreferences")
+            }
+            onLoginSuccess()
+            // Reset ViewModel state immediately after navigation to prevent re-triggering
+            viewModel.resetState()
+            android.util.Log.d("LoginScreen", "onLoginSuccess() completed and state reset")
+        }
+    }
+    
+    // Show error snackbar
+    uiState.error?.let { error ->
+        LaunchedEffect(error) {
+            // You can show a Snackbar here if needed
+            viewModel.clearError()
+        }
+    }
     
     Box(
         modifier = Modifier
@@ -140,7 +183,7 @@ fun LoginScreen(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it },
                         label = { Text("Phone Number") },
-                        placeholder = { Text("+255 123 456 789") },
+                        placeholder = { Text("Enter your phone number") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Phone,
@@ -153,7 +196,10 @@ fun LoginScreen(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             focusedLabelColor = MaterialTheme.colorScheme.primary
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = KeyboardType.Phone
+                        )
                     )
                     
                     // Password Field
@@ -190,7 +236,11 @@ fun LoginScreen(
                     
                     // Sign In Button
                     Button(
-                        onClick = onLoginSuccess,
+                        onClick = {
+                            if (phoneNumber.isNotBlank() && password.isNotBlank()) {
+                                viewModel.login(phoneNumber, password)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
@@ -198,15 +248,39 @@ fun LoginScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !uiState.isLoading && phoneNumber.isNotBlank() && password.isNotBlank()
                     ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         Text(
-                            text = "Sign In",
+                            text = if (uiState.isLoading) "Signing In..." else "Sign In",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
+                }
+            }
+            
+            // Error Display
+            uiState.error?.let { error ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = "Error: $error",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 }
             }
             

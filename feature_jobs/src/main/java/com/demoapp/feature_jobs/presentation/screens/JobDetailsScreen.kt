@@ -31,12 +31,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.demoapp.feature_jobs.presentation.models.JobData
+import com.demoapp.feature_jobs.data.JobApplicationRepository
+import com.demoapp.feature_jobs.presentation.models.ApplicationStatus
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @Composable
 fun JobDetailsScreen(
     jobData: JobData,
-    navController: NavController
+    navController: NavController,
+    currentWorkerId: String = "worker_current_user" // Default worker ID for demo
 ) {
+    val applicationRepository = remember { JobApplicationRepository.getInstance() }
+    val isSelected = remember { 
+        applicationRepository.isContractorSelectedForJob(jobData.id, currentWorkerId)
+    }
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -244,27 +255,39 @@ fun JobDetailsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Chat with Job Poster Button
+            // Chat with Job Poster Button (only enabled if selected)
             Button(
                 onClick = { 
-                    // Navigate to chat with job poster
-                    navController.navigate("job_chat/${jobData.title}")
+                    if (isSelected) {
+                        // Navigate to chat with job poster
+                        navController.navigate("job_chat/${jobData.title}")
+                    }
                 },
+                enabled = isSelected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = if (isSelected) 
+                        MaterialTheme.colorScheme.primaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.surfaceVariant
                 ),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 shape = RoundedCornerShape(16.dp),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 Text(
-                    text = "💬 Chat with Job Poster",
+                    text = if (isSelected) 
+                        "💬 Chat with Job Poster" 
+                    else 
+                        "💬 Chat (Available after selection)",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = if (isSelected) 
+                        MaterialTheme.colorScheme.onPrimaryContainer 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
             

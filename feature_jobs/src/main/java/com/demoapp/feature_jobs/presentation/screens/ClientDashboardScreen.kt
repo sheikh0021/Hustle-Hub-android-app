@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -63,11 +65,15 @@ import com.demoapp.feature_jobs.domain.models.TaskData
 import com.demoapp.feature_jobs.domain.models.TaskStatus
 import com.demoapp.feature_jobs.data.JobRepositorySingleton
 import com.demoapp.core.ui.LanguageManager
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.demoapp.feature_auth.presentation.viewmodels.AuthViewModel
+import com.demoapp.feature_auth.data.AuthTokenManager
 
 @Composable
 fun ClientDashboardScreen(
     navController: NavController,
-    clientId: String = "client_mary_johnson" // Default to Mary Johnson for demo
+    clientId: String = "client_mary_johnson", // Default to Mary Johnson for demo
+    authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -79,6 +85,27 @@ fun ClientDashboardScreen(
     // Language toggle state
     var currentLanguage by remember { 
         mutableStateOf(LanguageManager.getCurrentLanguage(context))
+    }
+    
+    // Handle logout - only navigate if token was set and then cleared
+    val authState by authViewModel.uiState.collectAsState()
+    var previousToken by remember { mutableStateOf<String?>(null) }
+    
+    LaunchedEffect(authState.isSuccess, authState.token) {
+        android.util.Log.d("ClientDashboardScreen", "Auth state changed - isSuccess: ${authState.isSuccess}, token: ${if (authState.token != null) "Present" else "NULL"}, previousToken: ${if (previousToken != null) "Present" else "NULL"}")
+        
+        // Only navigate to auth if we had a token before and now it's null (actual logout)
+        if (previousToken != null && authState.token == null && !authState.isSuccess) {
+            android.util.Log.d("ClientDashboardScreen", "Logout detected - navigating to auth screen")
+            // User has been logged out, navigate to login screen
+            navController.navigate("auth") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+        // Update previous token
+        if (authState.token != null) {
+            previousToken = authState.token
+        }
     }
     
     Column(
@@ -99,7 +126,7 @@ fun ClientDashboardScreen(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Language Toggle Button
+            // Language Toggle Button and Logout
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -123,6 +150,34 @@ fun ClientDashboardScreen(
                         },
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                // Logout Button
+                IconButton(
+                    onClick = {
+                        android.util.Log.d("ClientDashboardScreen", "Logout button clicked")
+                        // Get token from SharedPreferences
+                        val token = AuthTokenManager.getToken(context)
+                        if (token != null) {
+                            // Call logout API with token
+                            authViewModel.logout(token)
+                            // Clear token from SharedPreferences
+                            AuthTokenManager.clearToken(context)
+                        } else {
+                            android.util.Log.d("ClientDashboardScreen", "No token found, clearing state")
+                            authViewModel.resetState()
+                        }
+                        // Navigate to auth screen immediately after logout
+                        navController.navigate("auth") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ExitToApp,
+                        contentDescription = "Logout",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -273,7 +328,7 @@ private fun ClientTab(navController: NavController) {
         Spacer(modifier = Modifier.height(12.dp))
         
         JobTypeCard(
-            icon = "📦",
+            icon = "🚚",
             title = "Package Delivery",
             description = "Fast and reliable delivery services for your packages",
             onClick = { navController.navigate("job_request_flow/DELIVERY") }
@@ -282,7 +337,7 @@ private fun ClientTab(navController: NavController) {
         Spacer(modifier = Modifier.height(12.dp))
         
         JobTypeCard(
-            icon = "📊",
+            icon = "📋",
             title = "Survey & Research",
             description = "Data collection, market research, and customer feedback",
             onClick = { navController.navigate("job_request_flow/SURVEY") }
@@ -541,7 +596,8 @@ private fun AvailableJobsTab(navController: NavController, searchQuery: String) 
                         job = job,
                         isApplied = job.workerAccepted,
                         onApply = { 
-                            repository.acceptJob(job)
+                            // Navigate to contractor application screen
+                            navController.navigate("contractor_application/${job.id}/${job.title}")
                         },
                         onViewDetails = {
                             // Show job details dialog with Accept Job and Chat options
@@ -1069,7 +1125,9 @@ fun MyPostedJobsSection(navController: NavController, clientId: String) {
                     
                     Spacer(modifier = Modifier.width(16.dp))
                     
-                    Column {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = TranslationManager.getString(context, "my_posted_jobs"),
                             fontSize = 18.sp,
@@ -1084,12 +1142,30 @@ fun MyPostedJobsSection(navController: NavController, clientId: String) {
                     }
                 }
                 
-                TextButton(
-                    onClick = { 
-                        navController.navigate("my_posted_jobs")
-                    } 
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("View All")
+                    TextButton(
+                        onClick = { 
+                            navController.navigate("my_posted_jobs")
+                        } 
+                    ) {
+                        Text(
+                            text = "View All",
+                            fontSize = 12.sp
+                        )
+                    }
+                    
+                    TextButton(
+                        onClick = { 
+                            navController.navigate("job_poster_dashboard")
+                        } 
+                    ) {
+                        Text(
+                            text = "Manage",
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
             

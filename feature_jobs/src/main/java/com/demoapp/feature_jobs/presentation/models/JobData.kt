@@ -14,7 +14,7 @@ data class JobData(
     val clientPhoneNumber: String = "+254700000000", // Job poster's phone number
     val workerId: String? = null,
     val status: JobStatus = JobStatus.ACTIVE,
-    val workflowStep: WorkflowStep = WorkflowStep.POSTED,
+    val workflowStep: WorkflowStep = WorkflowStep.REQUEST_POSTED,
     val invoiceCreated: Boolean = false,
     val invoiceId: String? = null,
     val cancellationReason: String? = null,
@@ -59,6 +59,29 @@ data class JobData(
     val proofUploaded: Boolean = false,
     val deliveryProofUploaded: Boolean = false,
     val clientConfirmed: Boolean = false,
+    
+    // Evidence and proof tracking
+    val evidenceUploaded: Boolean = false,
+    val evidenceFiles: List<String> = emptyList(), // URLs of uploaded evidence files
+    val evidenceMessages: List<String> = emptyList(), // Messages with evidence
+    val evidencePhotos: List<String> = emptyList(), // Photo URLs
+    val evidenceVideos: List<String> = emptyList(), // Video URLs for surveys
+    val evidenceDocuments: List<String> = emptyList(), // Document URLs for surveys
+    
+    // Payment tracking
+    val wasshaPaymentProcessed: Boolean = false,
+    val paymentProofUploaded: Boolean = false,
+    val paymentProofFiles: List<String> = emptyList(), // Payment receipt photos
+    val paymentAmount: Double? = null,
+    val paymentDate: Date? = null,
+    
+    // Receipt tracking
+    val contractorReceiptConfirmed: Boolean = false,
+    val receiptConfirmedDate: Date? = null,
+    
+    // Workflow completion
+    val workflowFinalized: Boolean = false,
+    val finalizedDate: Date? = null,
 
     // New mandatory fields
     val location: String = "", // Required location field
@@ -105,15 +128,35 @@ enum class JobStatus {
 }
 
 enum class WorkflowStep {
-    POSTED,           // Job posted, waiting for worker
-    CHAT_INITIATED,   // Worker accepted, chat started
-    ESCROW_PENDING,   // Waiting for client to confirm and escrow
-    WORKER_CONFIRMED, // Worker confirmed to take task
-    IN_PROGRESS,      // Worker is doing the task
-    PROOF_UPLOADED,   // Worker uploaded proof
-    DELIVERY_PROOF,   // Worker uploaded delivery proof (for shopping/delivery)
-    CLIENT_REVIEW,    // Client reviewing submission
-    COMPLETED         // Job completed
+    // Request phase
+    REQUEST_POSTED,   // Job posted with details, deadline, amount, proof requirements
+    
+    // Offer phase  
+    OFFERS_RECEIVED,  // Contractors have applied/offered services
+    
+    // Contract phase
+    CONTRACT_SELECTED, // Requester selected contractor from offers
+    
+    // Execution phase
+    EXECUTION_STARTED, // Contractor started working
+    EXECUTION_IN_PROGRESS, // Contractor is working on the task
+    EVIDENCE_UPLOADED, // Contractor uploaded completion evidence
+    
+    // Completion phase
+    COMPLETION_SUBMITTED, // Contractor marked job as completed
+    
+    // Confirmation phase
+    CLIENT_CONFIRMED, // Client confirmed job completion without issues
+    
+    // Payment phase
+    PAYMENT_PROCESSING, // WASSHA processing payment
+    PAYMENT_PROOF_UPLOADED, // Client uploaded payment proof
+    
+    // Receipt phase
+    CONTRACTOR_RECEIPT_CONFIRMED, // Contractor confirmed receipt
+    
+    // Finalized phase
+    WORKFLOW_FINALIZED // Complete workflow closure
 }
 
 enum class LandmarkType {

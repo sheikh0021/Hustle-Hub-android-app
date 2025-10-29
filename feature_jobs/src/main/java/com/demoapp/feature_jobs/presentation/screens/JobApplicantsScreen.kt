@@ -51,6 +51,8 @@ import com.demoapp.feature_jobs.data.JobRepositorySingleton
 import com.demoapp.feature_jobs.presentation.models.JobApplication
 import com.demoapp.feature_jobs.presentation.models.JobData
 import com.demoapp.feature_jobs.presentation.models.JobStatus
+import com.demoapp.feature_jobs.presentation.components.AvailabilityStatusComponent
+import com.demoapp.feature_jobs.presentation.components.AvailabilityStatus
 
 @Composable
 fun JobApplicantsScreen(
@@ -271,6 +273,34 @@ private fun ApplicantCard(
                     text = "Applied ${getTimeAgo(application.appliedAt)}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Availability Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Availability:",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                
+                // Mock availability status (in real app, this would come from contractor profile)
+                val mockAvailability = when (application.workerId.hashCode() % 3) {
+                    0 -> AvailabilityStatus.AVAILABLE
+                    1 -> AvailabilityStatus.BUSY
+                    else -> AvailabilityStatus.OFFLINE
+                }
+                
+                AvailabilityStatusComponent(
+                    status = mockAvailability,
+                    showLabel = true,
+                    size = com.demoapp.feature_jobs.presentation.components.AvailabilitySize.SMALL
                 )
             }
             
