@@ -11,6 +11,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.PUT
 import retrofit2.http.POST
+import retrofit2.http.GET
 
 interface ProfileApi {
     
@@ -42,4 +43,9 @@ interface ProfileApi {
         @Header("Authorization") authorization: String,
         @Body request: com.demoapp.core_network.models.IdDocumentRequest
     ): Response<com.demoapp.core_network.models.UploadIdResponse>
+
+    @GET("api/auth/verification-status")
+    suspend fun getVerificationStatus(
+        @Header("Authorization") authorization: String
+    ): Response<com.demoapp.core_network.models.VerificationStatusResponse>
 }

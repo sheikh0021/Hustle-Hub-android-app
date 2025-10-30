@@ -3,6 +3,7 @@ package com.demoapp.feature_auth.data
 import android.content.Context
 import android.net.Uri
 import com.demoapp.core_network.NetworkClient
+import com.demoapp.core_network.models.VerificationStatusResponse
 import com.demoapp.core_network.models.UserProfileResponse
 import com.demoapp.core_network.models.ProfileUpdateRequest
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,19 @@ class ProfileRepository {
                 Result.failure(Exception("API Error: ${response.code()} - ${response.message()}"))
             }
 
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getVerificationStatus(authToken: String): Result<VerificationStatusResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = profileApi.getVerificationStatus("Bearer $authToken")
+            if (response.isSuccessful) {
+                response.body()?.let { Result.success(it) } ?: Result.failure(Exception("Empty response body"))
+            } else {
+                Result.failure(Exception("API Error: ${response.code()} - ${response.message()}"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
