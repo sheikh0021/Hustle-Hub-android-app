@@ -47,6 +47,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -672,6 +674,9 @@ private fun WorkerJobCard(
 ) {
     var showJobDetailsDialog by remember { mutableStateOf(false) }
     var localAppliedState by remember(job.id) { mutableStateOf(isApplied) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     
     // Update local state when prop changes
     LaunchedEffect(isApplied) {
@@ -791,6 +796,13 @@ private fun WorkerJobCard(
                 Button(
                     onClick = { 
                         localAppliedState = true
+                        coroutineScope.launch {
+                            val result = taskRepository.applyToTask(job.id)
+                            result.onFailure {
+                                android.util.Log.e("WorkerJobCard", "Apply failed: ${it.message}")
+                                localAppliedState = false
+                            }
+                        }
                         onApply()
                     },
                     modifier = Modifier

@@ -10,6 +10,7 @@ import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.PUT
+import retrofit2.http.POST
 
 interface ProfileApi {
     
@@ -28,4 +29,17 @@ interface ProfileApi {
         @Header("Authorization") authorization: String,
         @Body request: ProfileUpdateRequest
     ): Response<UserProfileResponse>
+
+    @Multipart
+    @POST("api/auth/upload-id")
+    suspend fun uploadIdImage(
+        @Header("Authorization") authorization: String,
+        @Part file: MultipartBody.Part
+    ): Response<com.demoapp.core_network.models.UploadIdResponse>
+
+    @POST("api/auth/upload-id")
+    suspend fun setIdDocumentUrl(
+        @Header("Authorization") authorization: String,
+        @Body request: com.demoapp.core_network.models.IdDocumentRequest
+    ): Response<com.demoapp.core_network.models.UploadIdResponse>
 }

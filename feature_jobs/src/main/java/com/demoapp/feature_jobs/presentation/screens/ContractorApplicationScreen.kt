@@ -15,6 +15,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.data.JobApplicationRepository
 import com.demoapp.feature_jobs.data.NotificationRepository
 import com.demoapp.feature_jobs.data.JobRepository
@@ -32,8 +35,12 @@ fun ContractorApplicationScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val taskRepository = remember { TaskRepository.getInstance(context) }
     var applicationMessage by remember { mutableStateOf("") }
     var relevantSkills by remember { mutableStateOf("") }
+    var proposedPriceInput by remember { mutableStateOf("") }
     var availability by remember { mutableStateOf("") }
     var expectedCompletionTime by remember { mutableStateOf("") }
     var additionalNotes by remember { mutableStateOf("") }
@@ -226,6 +233,17 @@ fun ContractorApplicationScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
                 
+                // Proposed Price
+                OutlinedTextField(
+                    value = proposedPriceInput,
+                    onValueChange = { proposedPriceInput = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                    label = { Text("Proposed Price (KES)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // Availability Dropdown
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -293,46 +311,25 @@ fun ContractorApplicationScreen(
         // Submit Button
         Button(
             onClick = {
-                if (applicationMessage.isNotBlank()) {
+                val proposedPrice = proposedPriceInput.toDoubleOrNull()
+                if (applicationMessage.isNotBlank() && proposedPrice != null) {
                     isSubmitting = true
-                    
-                    // Create application
-                    val application = JobApplication(
-                        id = "app_${System.currentTimeMillis()}",
-                        jobId = jobId,
-                        workerId = "worker_${System.currentTimeMillis()}", // This should come from user session
-                        workerName = "John Kamau", // This should come from user session
-                        workerPhone = "+254700000000", // This should come from user session
-                        workerRating = 4.5f, // This should come from user profile
-                        workerCompletedTasks = 15, // This should come from user profile
-                        applicationMessage = applicationMessage,
-                        appliedAt = Date(),
-                        status = ApplicationStatus.PENDING
-                    )
-                    
-                    // Submit application
-                    applicationRepository.submitApplication(application)
-                    
-                    // Get job details to find the client who posted the job
-                    val job = jobRepository.getJobById(jobId)
-                    if (job != null) {
-                        // Send notification to the job poster
-                        notificationRepository.createJobApplicationNotification(
-                            jobId = jobId,
-                            jobTitle = jobTitle,
-                            clientId = job.clientId,
-                            workerId = "worker_1", // This should come from user session
-                            workerName = "John Kamau" // This should come from user session
+                    coroutineScope.launch {
+                        val result = taskRepository.applyForTask(jobId, proposedPrice, applicationMessage)
+                        result.fold(
+                            onSuccess = {
+                                showSuccessDialog = true
+                            },
+                            onFailure = {
+                                // Optionally show snackbar/toast in real app
+                            }
                         )
+                        isSubmitting = false
                     }
-                    
-                    // Show success dialog
-                    showSuccessDialog = true
-                    isSubmitting = false
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = applicationMessage.isNotBlank() && !isSubmitting,
+            enabled = applicationMessage.isNotBlank() && proposedPriceInput.toDoubleOrNull() != null && !isSubmitting,
             shape = RoundedCornerShape(12.dp)
         ) {
             if (isSubmitting) {

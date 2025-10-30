@@ -38,7 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import android.net.Uri
 import com.demoapp.feature_auth.presentation.viewmodels.AuthViewModel
-import com.demoapp.feature_auth.utils.S3UploadService
+import com.demoapp.feature_auth.utils.BackendUploadService
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,7 +79,9 @@ fun RegisterScreen(
     // Context and coroutine scope
     val context = LocalContext.current
     val coroutineScope = remember { CoroutineScope(Dispatchers.Main) }
-    val s3UploadService = remember { S3UploadService(context) }
+    val backendUploadService = remember { BackendUploadService(context) }
+    // Temporary override token for backend upload testing
+    val testBearerTokenOverride: String? = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYxODQ2MzA0LCJpYXQiOjE3NjE4NDI3MDQsImp0aSI6IjMyZTE4NmYwZGIwODRiZWY4NWU1N2E5MmUxOGI1YTk5IiwidXNlcl9pZCI6M30.aeXPjOBZMnVIKZX261taGmWIa7j6zTqvnbfjKyaptJg"
     
     // Upload states
     var isUploading by remember { mutableStateOf(false) }
@@ -111,10 +113,16 @@ fun RegisterScreen(
             uploadError = null
             isUploading = true
             
-            // Upload to S3 immediately when image is selected
+            // Upload via backend only if authenticated
             coroutineScope.launch {
                 try {
-                    val result = s3UploadService.uploadProfileImage(uri)
+                    val token = com.demoapp.feature_auth.data.AuthTokenManager.getToken(context)
+                    if (token.isNullOrBlank()) {
+                        uploadError = "Please login before uploading ID document"
+                        isUploading = false
+                        return@launch
+                    }
+                    val result = backendUploadService.uploadIdImage(uri, bearerTokenOverride = testBearerTokenOverride)
                     result.fold(
                         onSuccess = { imageUrl ->
                             profileImageUrl = imageUrl
@@ -615,7 +623,7 @@ fun RegisterScreen(
                                 )
                                 Text(
                                     text = when {
-                                        isUploading -> "Uploading to S3..."
+                                        isUploading -> "Uploading..."
                                         profileImageUrl != null -> "Photo uploaded successfully"
                                         profileImageUri != null -> "Photo selected"
                                         uploadError != null -> "Upload failed: $uploadError"

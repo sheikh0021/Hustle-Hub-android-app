@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.demoapp.feature_jobs.presentation.models.JobData
 import com.demoapp.feature_jobs.presentation.models.JobStatus
 import com.demoapp.feature_jobs.data.JobApplicationRepository
@@ -77,6 +78,7 @@ fun MyTasksScreen(
     val context = LocalContext.current
     val viewModel: MyTasksViewModel = viewModel { MyTasksViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Active", "Applied", "Completed", "Cancelled")
@@ -269,11 +271,20 @@ fun MyTasksScreen(
                 cancellationReason = ""
             },
             onConfirm = { reason ->
-                // TODO: Implement task cancellation API call
-                // For now, just close the dialog
-                showCancellationDialog = false
-                jobToCancel = null
-                cancellationReason = ""
+                val job = jobToCancel
+                if (job != null) {
+                    coroutineScope.launch {
+                        val result = viewModel.cancelTask(job.id)
+                        // Close dialog regardless; errors could be surfaced via uiState.error if desired
+                        showCancellationDialog = false
+                        jobToCancel = null
+                        cancellationReason = ""
+                    }
+                } else {
+                    showCancellationDialog = false
+                    jobToCancel = null
+                    cancellationReason = ""
+                }
             }
         )
     }

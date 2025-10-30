@@ -34,9 +34,7 @@ class MyTasksViewModel(
     private val _uiState = MutableStateFlow(MyTasksUiState())
     val uiState: StateFlow<MyTasksUiState> = _uiState.asStateFlow()
 
-    init {
-        loadMyTasks()
-    }
+    init { loadMyTasks() }
 
     fun loadMyTasks() {
         viewModelScope.launch {
@@ -85,6 +83,26 @@ class MyTasksViewModel(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
+    suspend fun cancelTask(taskId: String): Result<Unit> {
+        val result = taskRepository.cancelTask(taskId)
+        return result.fold(
+            onSuccess = {
+                // reload tasks after cancel
+                loadMyTasks()
+                Result.success(Unit)
+            },
+            onFailure = { e -> Result.failure(e) }
+        )
+    }
+
+    suspend fun createInvoice(taskId: String): Result<String> {
+        val result = taskRepository.createInvoice(taskId)
+        return result.fold(
+            onSuccess = { resp -> Result.success(resp.message) },
+            onFailure = { e -> Result.failure(e) }
+        )
+    }
+
     private fun mapApiTaskToJobData(apiTask: ApiTaskData): JobData {
         return JobData(
             id = apiTask.id.toString(),
@@ -94,22 +112,16 @@ class MyTasksViewModel(
             deadline = formatDueDate(apiTask.due_date),
             jobType = apiTask.category,
             location = apiTask.store_service_location,
-            status = mapTaskStatus(apiTask),
+            status = JobStatus.IN_PROGRESS,
             deliveryAddress = apiTask.delivery_location,
             deliveryLat = apiTask.delivery_latitude,
             deliveryLng = apiTask.delivery_longitude,
-            distance = 0.0, // TODO: Calculate distance if needed
+            distance = 0.0,
             workerId = null, // Will be set when worker applies
             workerAccepted = false,
             invoiceCreated = false,
             cancellationReason = null
         )
-    }
-
-    private fun mapTaskStatus(apiTask: ApiTaskData): JobStatus {
-        // For now, map all API tasks to ACTIVE status
-        // In a real implementation, you might have status field in the API response
-        return JobStatus.ACTIVE
     }
 
     private fun formatDueDate(dueDate: String): String {

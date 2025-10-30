@@ -11,19 +11,13 @@ import java.util.concurrent.TimeUnit
 
 object NetworkClient {
     
-    private const val BASE_URL = "http://10.0.2.2:8000/" // Android emulator localhost mapping
+    private const val BASE_URL = "http://16.28.133.78:8000/"
     
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor { chain ->
-            val original = chain.request()
-            val requestBuilder = original.newBuilder()
-                .header("Host", "localhost:8000") // Override Host header for Django
-            val request = requestBuilder.build()
-            chain.proceed(request)
-        }
+        // No Host override when using a real IP/base URL
         .addInterceptor(
             HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY

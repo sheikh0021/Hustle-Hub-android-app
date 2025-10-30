@@ -147,6 +147,25 @@ core_network/
 2. Update Firebase project settings in the Firebase Console
 3. Ensure all required Firebase services are enabled
 
+### Backend Configuration (Production API)
+- Base URL: `http://16.28.133.78:8000/`
+- Auth endpoints:
+  - `POST api/auth/login`
+  - `POST api/auth/register`
+  - `POST api/auth/logout`
+- Profile upload:
+  - File upload (recommended flow): `POST api/auth/upload-id` (multipart, field: `file`)
+  - JSON URL setter (alternative): `POST api/auth/upload-id` body `{ "id_document": "<url>" }`
+- Tasks:
+  - `POST api/tasks/create`
+  - `GET api/tasks/list?status=&category=&page=&page_size=`
+  - `GET api/tasks/my-tasks`
+  - `POST api/tasks/{task_id}/apply` (body: `{ proposed_price, message }`)
+  - `GET api/tasks/{task_id}/applications`
+  - `POST api/tasks/{task_id}/accept/{user_id}`
+  - `DELETE api/tasks/{task_id}/cancel`
+  - `POST api/tasks/{task_id}/invoice/create`
+
 ### Build Configuration
 - Update `compileSdk` and `targetSdk` versions in `build.gradle.kts` files as needed
 - Modify package names if required
@@ -171,6 +190,14 @@ core_network/
 5. Worker executes job with real-time status updates
 6. Worker communicates with client via chat
 7. Job completion triggers payment process
+
+### Chat Workflow (Firebase)
+- Real-time chat stored in Firestore.
+- Chat room is created per task; after client accepts a worker, the worker is assigned to the chat room and both sides can message.
+
+### Profile Upload Workflow (Backend → S3)
+- App selects image and uploads to backend `api/auth/upload-id` (multipart `file`).
+- Backend stores in S3 and returns the public URL which is stored as the user `id_document`.
 
 ## 🧪 Testing
 

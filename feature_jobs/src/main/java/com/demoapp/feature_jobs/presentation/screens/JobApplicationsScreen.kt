@@ -15,6 +15,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
+import com.demoapp.feature_jobs.data.TaskRepository
+import com.demoapp.feature_jobs.data.FirebaseChatRepository
 import com.demoapp.feature_jobs.data.JobApplicationRepository
 import com.demoapp.feature_jobs.data.NotificationRepository
 import com.demoapp.feature_jobs.data.JobRepository
@@ -32,12 +36,28 @@ fun JobApplicationsScreen(
     jobTitle: String,
     navController: NavController
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val taskRepository = remember { TaskRepository.getInstance(context) }
+    val firebaseChatRepository = remember { FirebaseChatRepository.getInstance() }
     val applicationRepository = JobApplicationRepository.getInstance()
     val notificationRepository = NotificationRepository.getInstance()
     val jobRepository = JobRepository()
     
     val job = jobRepository.getJobById(jobId)
     val applications by applicationRepository.applications.collectAsState()
+    var backendCount by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(jobId) {
+        coroutineScope.launch {
+            val result = taskRepository.getTaskApplications(jobId)
+            result.onSuccess { resp ->
+                backendCount = resp.data?.applications?.size
+            }.onFailure {
+                backendCount = null
+            }
+        }
+    }
     val jobApplications = applications.filter { it.jobId == jobId }
     
     var selectedApplication by remember { mutableStateOf<JobApplication?>(null) }
@@ -78,7 +98,7 @@ fun JobApplicationsScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Total Applications: ${jobApplications.size}",
+                        text = "Total Applications: ${backendCount ?: jobApplications.size}",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -163,36 +183,47 @@ fun JobApplicationsScreen(
                 Button(
                     onClick = {
                         selectedApplication?.let { app ->
-                            // Update application status
-                            applicationRepository.updateApplicationStatus(app.id, ApplicationStatus.SELECTED)
-                            
-                            // Reject other applications
-                            jobApplications.forEach { otherApp ->
-                                if (otherApp.id != app.id) {
-                                    applicationRepository.updateApplicationStatus(otherApp.id, ApplicationStatus.REJECTED)
-                                    // Send rejection notification
-                                    notificationRepository.createJobRejectionNotification(
+                            // Attempt backend accept call first
+                            coroutineScope.launch {
+                                val userIdForApi = app.workerId.filter { it.isDigit() }
+                                val result = if (userIdForApi.isNotBlank()) {
+                                    taskRepository.acceptApplication(jobId, userIdForApi)
+                                } else {
+                                    Result.failure(Exception("Invalid user id for accept"))
+                                }
+
+                                result.onSuccess {
+                                    // On success, update local UI state as selected
+                                    applicationRepository.updateApplicationStatus(app.id, ApplicationStatus.SELECTED)
+                                    jobApplications.forEach { otherApp ->
+                                        if (otherApp.id != app.id) {
+                                            applicationRepository.updateApplicationStatus(otherApp.id, ApplicationStatus.REJECTED)
+                                            notificationRepository.createJobRejectionNotification(
+                                                jobId = jobId,
+                                                jobTitle = jobTitle,
+                                                workerId = otherApp.workerId
+                                            )
+                                        }
+                                    }
+                                    notificationRepository.createJobSelectionNotification(
                                         jobId = jobId,
                                         jobTitle = jobTitle,
-                                        workerId = otherApp.workerId
+                                        workerId = app.workerId,
+                                        workerName = app.workerName
                                     )
+                                    jobRepository.updateJobStatus(jobId, JobStatus.IN_PROGRESS)
+                                    // Ensure chat room has the assigned worker set for poster↔worker chat
+                                    firebaseChatRepository.assignWorkerToChatRoom(jobId, app.workerId, app.workerName)
+                                    showSelectionDialog = false
+                                    selectedApplication = null
+                                    navController.popBackStack()
+                                }.onFailure {
+                                    // Keep dialog open or close; here we close but you can show a toast/snackbar
+                                    showSelectionDialog = false
+                                    selectedApplication = null
                                 }
                             }
-                            
-                            // Send selection notification to selected contractor
-                            notificationRepository.createJobSelectionNotification(
-                                jobId = jobId,
-                                jobTitle = jobTitle,
-                                workerId = app.workerId,
-                                workerName = app.workerName
-                            )
-                            
-                            // Update job status to in progress
-                            jobRepository.updateJobStatus(jobId, JobStatus.IN_PROGRESS)
                         }
-                        showSelectionDialog = false
-                        selectedApplication = null
-                        navController.popBackStack()
                     }
                 ) {
                     Text("Select")
