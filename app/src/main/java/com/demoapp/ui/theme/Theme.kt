@@ -17,29 +17,85 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Green80,
-    secondary = Green40,
-    tertiary = ForestGreen,
-    background = Color(0xFF1B1B1B),
-    surface = Color(0xFF2D2D2D),
+    primary = PrimaryGreenLight,
     onPrimary = Color(0xFF000000),
+    primaryContainer = PrimaryGreenDark.copy(alpha = 0.3f),
+    onPrimaryContainer = PrimaryGreenLight,
+    
+    secondary = SecondaryGreen,
     onSecondary = Color(0xFF000000),
+    secondaryContainer = DarkGreen,
+    onSecondaryContainer = SecondaryGreen,
+    
+    tertiary = InfoBlue,
     onTertiary = Color(0xFFFFFFFF),
-    onBackground = Color(0xFFFFFFFF),
-    onSurface = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF0D47A1),
+    onTertiaryContainer = Color(0xFFBBDEFB),
+    
+    error = ErrorRed,
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFB71C1C),
+    onErrorContainer = Color(0xFFFFCDD2),
+    
+    background = SurfaceDark,
+    onBackground = OnSurfaceDark,
+    
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    
+    outline = Color(0xFF9E9E9E),
+    outlineVariant = Color(0xFF616161),
+    
+    inverseSurface = Color(0xFFF5F5F5),
+    inverseOnSurface = Color(0xFF1E1E1E),
+    inversePrimary = PrimaryGreen,
+    
+    scrim = Color(0xFF000000),
+    surfaceTint = PrimaryGreenLight
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Green40,
-    secondary = Green80,
-    tertiary = ForestGreen,
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = PrimaryGreen,
     onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = LightGreen.copy(alpha = 0.3f),
+    onPrimaryContainer = PrimaryGreenDark,
+    
+    secondary = SecondaryGreen,
     onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = PaleGreen,
+    onSecondaryContainer = PrimaryGreenDark,
+    
+    tertiary = InfoBlue,
     onTertiary = Color(0xFFFFFFFF),
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
+    tertiaryContainer = Color(0xFFBBDEFB),
+    onTertiaryContainer = Color(0xFF0D47A1),
+    
+    error = ErrorRed,
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFCDD2),
+    onErrorContainer = Color(0xFFB71C1C),
+    
+    background = SurfaceLight,
+    onBackground = OnSurfaceLight,
+    
+    surface = SurfaceLight,
+    onSurface = OnSurfaceLight,
+    
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = OnSurfaceVariantLight,
+    
+    outline = Color(0xFF757575),
+    outlineVariant = Color(0xFFBDBDBD),
+    
+    inverseSurface = Color(0xFF1E1E1E),
+    inverseOnSurface = Color(0xFFF5F5F5),
+    inversePrimary = PrimaryGreenLight,
+    
+    scrim = Color(0xFF000000),
+    surfaceTint = PrimaryGreen
 )
 
 @Composable

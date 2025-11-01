@@ -14,6 +14,7 @@ import com.demoapp.core_network.models.InvoiceCreateResponse
 import com.demoapp.core_network.models.TaskCreateRequest
 import com.demoapp.core_network.models.TaskCreateResponse
 import com.demoapp.core_network.models.CancelTaskResponse
+import com.demoapp.core_network.models.TaskDetailsResponse
 import com.demoapp.core_network.models.ShoppingItem
 import com.demoapp.feature_auth.data.AuthTokenManager
 import com.demoapp.feature_jobs.domain.models.TaskData
@@ -143,23 +144,56 @@ class TaskRepository private constructor(context: Context) {
 
     suspend fun applyForTask(taskId: String, proposedPrice: Double, message: String?): Result<ApplyForTaskResponse> = withContext(Dispatchers.IO) {
         try {
+            android.util.Log.d("TaskRepository", "Applying for task: taskId=$taskId, proposedPrice=$proposedPrice, message=$message")
+            
             val token = AuthTokenManager.getToken(appContext)
             if (token == null) {
+                android.util.Log.e("TaskRepository", "Authentication token not found")
                 return@withContext Result.failure(Exception("Authentication token not found. Please login again."))
             }
+            
             val req = ApplyForTaskRequest(proposed_price = proposedPrice, message = message)
+            android.util.Log.d("TaskRepository", "Calling applyForTask API with request: $req")
+            
             val response = taskApi.applyForTask("Bearer $token", taskId, req)
+            
+            android.util.Log.d("TaskRepository", "Response code: ${response.code()}, isSuccessful: ${response.isSuccessful}")
+            
             if (response.isSuccessful) {
-                response.body()?.let { Result.success(it) } ?: Result.failure(Exception("Empty response body"))
+                val body = response.body()
+                android.util.Log.d("TaskRepository", "Response body: $body")
+                body?.let { 
+                    android.util.Log.d("TaskRepository", "Application submitted successfully")
+                    Result.success(it) 
+                } ?: run {
+                    android.util.Log.e("TaskRepository", "Empty response body")
+                    Result.failure(Exception("Empty response body"))
+                }
             } else {
                 val errorMessage = try {
-                    response.errorBody()?.string() ?: "Application failed"
+                    val errorBody = response.errorBody()?.string()
+                    android.util.Log.e("TaskRepository", "API error: ${response.code()} - ${response.message()}, body: $errorBody")
+                    
+                    // Try to parse JSON error response to extract the message
+                    if (errorBody != null && errorBody.contains("\"message\"")) {
+                        try {
+                            val jsonObject = org.json.JSONObject(errorBody)
+                            jsonObject.optString("message", errorBody)
+                        } catch (e: Exception) {
+                            errorBody
+                        }
+                    } else {
+                        errorBody ?: "Application failed"
+                    }
                 } catch (e: Exception) {
-                    "Application failed: ${response.code()} - ${response.message()}"
+                    val msg = "Application failed: ${response.code()} - ${response.message()}"
+                    android.util.Log.e("TaskRepository", msg, e)
+                    msg
                 }
                 Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
+            android.util.Log.e("TaskRepository", "Exception in applyForTask", e)
             Result.failure(e)
         }
     }
@@ -210,22 +244,36 @@ class TaskRepository private constructor(context: Context) {
 
     suspend fun createInvoice(taskId: String): Result<InvoiceCreateResponse> = withContext(Dispatchers.IO) {
         try {
+            android.util.Log.d("TaskRepository", "=== CREATE INVOICE API CALL ===")
+            android.util.Log.d("TaskRepository", "taskId=$taskId")
             val token = AuthTokenManager.getToken(appContext)
             if (token == null) {
+                android.util.Log.e("TaskRepository", "Authentication token is null!")
                 return@withContext Result.failure(Exception("Authentication token not found. Please login again."))
             }
+            android.util.Log.d("TaskRepository", "Token found, calling API: POST /api/tasks/$taskId/invoice/create")
             val response = taskApi.createInvoice("Bearer $token", taskId)
+            android.util.Log.d("TaskRepository", "API response code: ${response.code()}, isSuccessful: ${response.isSuccessful}")
             if (response.isSuccessful) {
-                response.body()?.let { Result.success(it) } ?: Result.failure(Exception("Empty response body"))
+                response.body()?.let { 
+                    android.util.Log.d("TaskRepository", "Invoice created successfully: ${it.data?.invoice_number}")
+                    Result.success(it) 
+                } ?: run {
+                    android.util.Log.e("TaskRepository", "Empty response body from createInvoice API")
+                    Result.failure(Exception("Empty response body"))
+                }
             } else {
                 val errorMessage = try {
                     response.errorBody()?.string() ?: "Failed to create invoice"
                 } catch (e: Exception) {
                     "Failed to create invoice: ${response.code()} - ${response.message()}"
                 }
+                android.util.Log.e("TaskRepository", "API call failed: $errorMessage (code: ${response.code()})")
                 Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
+            android.util.Log.e("TaskRepository", "Exception in createInvoice: ${e.message}", e)
+            android.util.Log.e("TaskRepository", "Exception type: ${e::class.simpleName}")
             Result.failure(e)
         }
     }
@@ -313,6 +361,29 @@ class TaskRepository private constructor(context: Context) {
             }
         } catch (e: Exception) {
             android.util.Log.e("TaskRepository", "Exception creating task", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTaskDetails(taskId: String): Result<TaskDetailsResponse> = withContext(Dispatchers.IO) {
+        try {
+            val token = AuthTokenManager.getToken(appContext)
+            if (token == null) {
+                return@withContext Result.failure(Exception("Authentication token not found. Please login again."))
+            }
+            android.util.Log.d("TaskRepository", "Calling getTaskDetails API for taskId: $taskId")
+            val response = taskApi.getTaskDetails("Bearer $token", taskId)
+            if (response.isSuccessful) {
+                response.body()?.let { Result.success(it) } ?: Result.failure(Exception("Empty response body"))
+            } else {
+                val errorMessage = try {
+                    response.errorBody()?.string() ?: "Failed to fetch task details"
+                } catch (e: Exception) {
+                    "Failed to fetch task details: ${response.code()} - ${response.message()}"
+                }
+                Result.failure(Exception(errorMessage))
+            }
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }

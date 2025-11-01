@@ -277,7 +277,7 @@ class OfflineJobRepository(
     }
 
     fun initializeSampleData() {
-        // Initialize with sample data including new fields
+        // Keep only 2 sample jobs - rest should come from backend
         val sampleJobs = listOf(
             JobData(
                 id = "sample_grocery_1",
@@ -306,6 +306,26 @@ class OfflineJobRepository(
                 deliveryLat = -6.1730,
                 deliveryLng = 35.7419,
                 shoppingList = "Milk, Bread, Eggs, Fruits, Vegetables"
+            ),
+            JobData(
+                id = "sample_delivery_1",
+                title = "Package Delivery",
+                description = "Deliver package from downtown",
+                pay = 35.0,
+                distance = 5.2,
+                deadline = "Tomorrow, 2:00 PM",
+                jobType = "Delivery",
+                status = JobStatus.ACTIVE,
+                latitude = -6.1630,
+                longitude = 35.7516,
+                locationName = "Dodoma Post Office",
+                pickupAddress = "456 Post Office Road, Dodoma, Tanzania",
+                pickupLat = -6.1630,
+                pickupLng = 35.7516,
+                dropoffAddress = "789 Client Avenue, Dodoma, Tanzania",
+                dropoffLat = -6.1730,
+                dropoffLng = 35.7419,
+                parcelDescription = "Small electronics package, fragile"
             )
         )
         _jobs.value = sampleJobs

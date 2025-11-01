@@ -59,6 +59,7 @@ fun AvailableJobsScreen(
     val jobs by repository.jobs.collectAsState()
     
     // Filter only active jobs that are available for workers
+    // Include both backend jobs (numeric IDs) and sample jobs (string IDs)
     val availableJobs = jobs.filter { it.status == JobStatus.ACTIVE }
     
     Column(
@@ -83,7 +84,7 @@ fun AvailableJobsScreen(
             
             Text(
                 text = "Available Jobs",
-                fontSize = 24.sp,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 8.dp)
@@ -99,7 +100,7 @@ fun AvailableJobsScreen(
                 item {
                     Text(
                         text = "No available jobs at the moment",
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center,
                         modifier = Modifier
@@ -160,18 +161,20 @@ private fun AvailableJobCard(
             // Title
             Text(
                 text = job.title,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Description
             Text(
                 text = job.description,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth()
             )
             
             Spacer(modifier = Modifier.height(12.dp))
@@ -253,7 +256,7 @@ private fun AvailableJobCard(
                 // View Details Button (Dark Green)
                 Button(
                     onClick = { 
-                        navController.navigate("job_details/${job.title}")
+                        navController.navigate("job_details/${job.id}")
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -272,9 +275,12 @@ private fun AvailableJobCard(
                     )
                 }
                 
-                // Accept Job Button (Light Green)
+                // Apply Now Button (Light Green) - Navigate to application screen
                 Button(
-                    onClick = { onAcceptJob(job) },
+                    onClick = { 
+                        // Navigate to application screen for both backend and sample jobs
+                        navController.navigate("contractor_application/${job.id}/${job.title}")
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
@@ -290,13 +296,13 @@ private fun AvailableJobCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Accept",
+                            contentDescription = "Apply",
                             modifier = Modifier.size(18.dp),
                             tint = androidx.compose.ui.graphics.Color.White
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Accept Job",
+                            text = "Apply Now",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = androidx.compose.ui.graphics.Color.White

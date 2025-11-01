@@ -201,11 +201,11 @@ private fun NotificationCard(
             containerColor = if (notification.isRead) {
                 MaterialTheme.colorScheme.surface
             } else {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                MaterialTheme.colorScheme.surface
             }
         ),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -218,10 +218,12 @@ private fun NotificationCard(
                     .clip(CircleShape)
                     .background(
                         when (notification.type) {
-                            NotificationType.JOB_APPLICATION -> MaterialTheme.colorScheme.primaryContainer
-                            NotificationType.JOB_SELECTED -> Color(0xFF4CAF50).copy(alpha = 0.2f)
-                            NotificationType.JOB_REJECTED -> MaterialTheme.colorScheme.errorContainer
-                            else -> MaterialTheme.colorScheme.secondaryContainer
+                            NotificationType.JOB_APPLICATION -> MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            NotificationType.JOB_SELECTED -> Color(0xFF4CAF50).copy(alpha = 0.15f)
+                            NotificationType.JOB_REJECTED -> MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                            NotificationType.JOB_COMPLETED -> Color(0xFF9C27B0).copy(alpha = 0.1f)
+                            NotificationType.INVOICE_CREATED -> Color(0xFF00BCD4).copy(alpha = 0.1f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -234,12 +236,14 @@ private fun NotificationCard(
                         else -> Icons.Default.Notifications
                     },
                     contentDescription = "Notification type",
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(22.dp),
                     tint = when (notification.type) {
                         NotificationType.JOB_APPLICATION -> MaterialTheme.colorScheme.primary
                         NotificationType.JOB_SELECTED -> Color(0xFF4CAF50)
                         NotificationType.JOB_REJECTED -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSecondaryContainer
+                        NotificationType.JOB_COMPLETED -> Color(0xFF9C27B0)
+                        NotificationType.INVOICE_CREATED -> Color(0xFF00BCD4)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )
             }
@@ -250,21 +254,21 @@ private fun NotificationCard(
                 Text(
                     text = notification.title,
                     fontSize = 16.sp,
-                    fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.Bold,
+                    fontWeight = if (notification.isRead) FontWeight.Medium else FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = notification.message,
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    lineHeight = 18.sp
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    lineHeight = 20.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = getTimeAgo(notification.createdAt),
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
             
@@ -272,7 +276,7 @@ private fun NotificationCard(
             if (!notification.isRead) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
                 )

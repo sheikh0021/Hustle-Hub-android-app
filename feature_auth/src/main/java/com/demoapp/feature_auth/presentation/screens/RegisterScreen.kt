@@ -80,8 +80,6 @@ fun RegisterScreen(
     val context = LocalContext.current
     val coroutineScope = remember { CoroutineScope(Dispatchers.Main) }
     val backendUploadService = remember { BackendUploadService(context) }
-    // Temporary override token for backend upload testing
-    val testBearerTokenOverride: String? = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYxODQ2MzA0LCJpYXQiOjE3NjE4NDI3MDQsImp0aSI6IjMyZTE4NmYwZGIwODRiZWY4NWU1N2E5MmUxOGI1YTk5IiwidXNlcl9pZCI6M30.aeXPjOBZMnVIKZX261taGmWIa7j6zTqvnbfjKyaptJg"
     
     // Upload states
     var isUploading by remember { mutableStateOf(false) }
@@ -122,10 +120,21 @@ fun RegisterScreen(
                         isUploading = false
                         return@launch
                     }
-                    val result = backendUploadService.uploadIdImage(uri, bearerTokenOverride = testBearerTokenOverride)
+                    // Use the stored token (BackendUploadService will add "Bearer " prefix automatically)
+                    val result = backendUploadService.uploadIdImage(uri, bearerTokenOverride = null)
                     result.fold(
                         onSuccess = { imageUrl ->
                             profileImageUrl = imageUrl
+                            // Explicitly set the ID document URL via JSON endpoint to ensure it's stored
+                            backendUploadService.setIdDocumentUrl(imageUrl, bearerTokenOverride = null).fold(
+                                onSuccess = { 
+                                    android.util.Log.d("RegisterScreen", "ID document URL set successfully: $imageUrl")
+                                },
+                                onFailure = { 
+                                    // Log but don't fail - multipart upload already succeeded
+                                    android.util.Log.w("RegisterScreen", "Failed to set ID document URL, but upload succeeded: ${it.message}")
+                                }
+                            )
                             isUploading = false
                             android.util.Log.d("RegisterScreen", "Profile image uploaded successfully: $imageUrl")
                         },
@@ -300,11 +309,11 @@ fun RegisterScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
                     
-                    // Email Field
+                    // Email Field (Optional)
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email Address *") },
+                        label = { Text("Email Address (Optional)") },
                         placeholder = { Text("john.doe@example.com") },
                         leadingIcon = {
                             Icon(
@@ -315,7 +324,7 @@ fun RegisterScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        isError = showValidationErrors && (email.isEmpty() || !email.contains("@")),
+                        isError = showValidationErrors && email.isNotEmpty() && !email.contains("@"),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             focusedLabelColor = MaterialTheme.colorScheme.primary
@@ -661,11 +670,10 @@ fun RegisterScreen(
             ) {
                 Surface(
                     onClick = {
-                        // Validate required fields
+                        // Validate required fields (email is optional)
                         val isValid = firstName.isNotEmpty() && 
                                     lastName.isNotEmpty() && 
-                                    email.isNotEmpty() && 
-                                    email.contains("@") &&
+                                    (email.isEmpty() || email.contains("@")) && // Email is optional, but if provided must be valid
                                     phoneNumber.isNotEmpty() && 
                                     password.isNotEmpty() && 
                                     password.length >= 6 &&

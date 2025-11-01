@@ -49,6 +49,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,8 @@ import kotlinx.coroutines.launch
 import com.demoapp.feature_jobs.presentation.models.JobData
 import com.demoapp.feature_jobs.presentation.models.JobStatus
 import com.demoapp.feature_jobs.data.JobApplicationRepository
+import com.demoapp.feature_jobs.data.JobRepositorySingleton
+import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.presentation.models.JobApplication
 import com.demoapp.feature_jobs.presentation.models.ApplicationStatus
 import com.demoapp.feature_jobs.presentation.components.WithdrawalConfirmationDialog
@@ -73,14 +76,51 @@ import com.demoapp.feature_jobs.presentation.viewmodels.MyTasksViewModel
 fun MyTasksScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    workerId: String = "worker_1" // Default worker ID for demo
+    workerId: String = "worker_1", // Default worker ID for demo
+    initialTabIndex: Int = 0
 ) {
     val context = LocalContext.current
     val viewModel: MyTasksViewModel = viewModel { MyTasksViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val localJobRepository = JobRepositorySingleton.instance
+    val localJobs by localJobRepository.jobs.collectAsState()
     
-    var selectedTabIndex by remember { mutableStateOf(0) }
+    var selectedTabIndex by remember { mutableStateOf(initialTabIndex) }
+    
+    // Refresh tasks when screen comes into focus and merge with local completed jobs
+    LaunchedEffect(Unit) {
+        viewModel.refreshTasks()
+    }
+    
+    // Also refresh when navigating to completed tab initially
+    LaunchedEffect(initialTabIndex) {
+        if (initialTabIndex == 2) { // Completed tab
+            android.util.Log.d("MyTasksScreen", "Initial tab is Completed, refreshing immediately and after delay...")
+            // Refresh immediately
+            viewModel.refreshTasks()
+            // Also refresh after a delay to ensure repository updates are reflected
+            kotlinx.coroutines.delay(500)
+            viewModel.refreshTasks()
+        }
+    }
+    
+    // Also refresh when local jobs change (in case invoice was just created)
+    // Use a more reactive key that detects when jobs are marked as completed
+    val completedJobsCount = localJobs.count { it.invoiceCreated == true || it.status == JobStatus.COMPLETED || it.isCompleted == true }
+    LaunchedEffect(completedJobsCount) {
+        // Refresh whenever completed jobs count changes (e.g., when invoice is created)
+        android.util.Log.d("MyTasksScreen", "Completed jobs count changed: $completedJobsCount, refreshing...")
+        viewModel.refreshTasks()
+    }
+    
+    // Refresh when completed tab is selected to ensure latest data
+    LaunchedEffect(selectedTabIndex) {
+        if (selectedTabIndex == 2) { // Completed tab is index 2
+            android.util.Log.d("MyTasksScreen", "Completed tab selected, refreshing...")
+            viewModel.refreshTasks()
+        }
+    }
     val tabs = listOf("Active", "Applied", "Completed", "Cancelled")
     var cancellationReason by remember { mutableStateOf("") }
     var showCancellationDialog by remember { mutableStateOf(false) }
@@ -123,10 +163,10 @@ fun MyTasksScreen(
             
             Text(
                 text = "My Tasks",
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp)
+                modifier = Modifier.padding(start = 8.dp)
             )
             
             Spacer(modifier = Modifier.weight(1f))
@@ -163,13 +203,13 @@ fun MyTasksScreen(
                 ) {
                     Text(
                         text = title,
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) 
                             MaterialTheme.colorScheme.primary 
                         else 
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         textAlign = TextAlign.Center
                     )
                     
@@ -255,7 +295,13 @@ fun MyTasksScreen(
                     jobToCancel = job
                     showCancellationDialog = true
                 })
-                1 -> AppliedJobsTab(myApplications, navController, applicationRepository)
+                1 -> AppliedJobsTab(
+                    myApplications, 
+                    navController, 
+                    applicationRepository,
+                    context = context,
+                    viewModel = viewModel
+                )
                 2 -> CompletedJobsTab(uiState.completedTasks, navController)
                 3 -> CancelledJobsTab(uiState.cancelledTasks, navController)
             }
@@ -346,7 +392,7 @@ private fun ActiveJobsTab(
             item {
                 Text(
                     text = "No active jobs",
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -370,10 +416,16 @@ private fun ActiveJobsTab(
 private fun AppliedJobsTab(
     applications: List<JobApplication>,
     navController: NavController,
-    applicationRepository: JobApplicationRepository
+    applicationRepository: JobApplicationRepository,
+    context: android.content.Context,
+    viewModel: MyTasksViewModel
 ) {
     var showWithdrawDialog by remember { mutableStateOf(false) }
     var selectedApplicationToWithdraw by remember { mutableStateOf<JobApplication?>(null) }
+    var isCancelling by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val taskRepository = remember { TaskRepository.getInstance(context) }
+    val jobRepository = JobRepositorySingleton.instance
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -410,11 +462,52 @@ private fun AppliedJobsTab(
         WithdrawalConfirmationDialog(
             jobTitle = "Job Application", // This should come from job data
             onConfirm = {
-                applicationRepository.withdrawApplication(application.jobId, application.workerId)
-                showWithdrawDialog = false
-                selectedApplicationToWithdraw = null
+                coroutineScope.launch {
+                    isCancelling = true
+                    try {
+                        val jobId = application.jobId
+                        val isBackendJob = jobId.toIntOrNull() != null
+                        
+                        // For backend jobs, call the cancel API
+                        if (isBackendJob) {
+                            val result = taskRepository.cancelTask(jobId)
+                            if (result.isFailure) {
+                                // If API call fails, still withdraw locally but show error
+                                android.util.Log.e("AppliedJobsTab", "Failed to cancel task via API: ${result.exceptionOrNull()?.message}")
+                                // Continue with local withdrawal
+                            }
+                        }
+                        
+                        // Withdraw the application locally
+                        applicationRepository.withdrawApplication(jobId, application.workerId)
+                        
+                        // Update job status to CANCELLED in local repository
+                        val job = jobRepository.getJobById(jobId)
+                        if (job != null) {
+                            jobRepository.updateJobStatus(jobId, JobStatus.CANCELLED)
+                        } else {
+                            // If job doesn't exist locally, try to get it from ViewModel and mark as cancelled
+                            // For now, we'll refresh tasks which should pick up the cancelled status from backend
+                        }
+                        
+                        // Refresh tasks to update the UI
+                        viewModel.refreshTasks()
+                        
+                        showWithdrawDialog = false
+                        selectedApplicationToWithdraw = null
+                    } catch (e: Exception) {
+                        android.util.Log.e("AppliedJobsTab", "Error withdrawing application: ${e.message}")
+                    } finally {
+                        isCancelling = false
+                    }
+                }
             },
-            onDismiss = { showWithdrawDialog = false }
+            onDismiss = { 
+                if (!isCancelling) {
+                    showWithdrawDialog = false
+                    selectedApplicationToWithdraw = null
+                }
+            }
         )
     }
 }
@@ -425,17 +518,27 @@ private fun CompletedJobsTab(
     jobs: List<JobData>,
     navController: NavController
 ) {
-    val completedJobs = jobs.filter { it.status == JobStatus.COMPLETED }
+    // Show all jobs that are completed (by status or isCompleted flag) OR have invoices
+    val completedJobs = jobs.filter { 
+        val isCompleted = (it.invoiceCreated == true) || 
+                         (it.status == JobStatus.COMPLETED || it.isCompleted == true)
+        if (isCompleted) {
+            android.util.Log.d("CompletedJobsTab", "Including job: id=${it.id}, title=${it.title}, status=${it.status}, invoiceCreated=${it.invoiceCreated}, isCompleted=${it.isCompleted}")
+        }
+        isCompleted
+    }
+    
+    android.util.Log.d("CompletedJobsTab", "Displaying ${completedJobs.size} completed jobs out of ${jobs.size} total jobs")
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (completedJobs.isEmpty()) {
+            if (completedJobs.isEmpty()) {
             item {
                 Text(
                     text = "No completed jobs",
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -470,7 +573,7 @@ private fun CancelledJobsTab(
             item {
                 Text(
                     text = "No cancelled jobs",
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -513,18 +616,20 @@ private fun JobCard(
             // Title
             Text(
                 text = job.title,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Description
             Text(
                 text = job.description,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth()
             )
             
             Spacer(modifier = Modifier.height(12.dp))
@@ -561,7 +666,7 @@ private fun JobCard(
                             JobStatus.CANCELLED -> "Cancelled"
                             JobStatus.DRAFT -> "Draft"
                         },
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
                     )
@@ -597,14 +702,14 @@ private fun JobCard(
                 ) {
                     Text(
                         text = "KES ${String.format("%.0f", job.pay)}",
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     
                     Text(
                         text = "Budget",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
@@ -620,7 +725,7 @@ private fun JobCard(
                 // View Details Button (Dark Green)
                 Button(
                     onClick = { 
-                        navController.navigate("job_details/${job.title}")
+                        navController.navigate("job_details/${job.id}")
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
@@ -631,7 +736,7 @@ private fun JobCard(
                 ) {
                     Text(
                         text = "View Details",
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onPrimary,
                         maxLines = 1,
@@ -662,7 +767,7 @@ private fun JobCard(
                 }
                 
                 // Third Button - varies based on job status
-                if (job.status == JobStatus.COMPLETED) {
+                if (job.status == JobStatus.COMPLETED || job.isCompleted == true) {
                     if (job.invoiceCreated) {
                         // Show "Invoice Created" button (disabled)
                         Button(

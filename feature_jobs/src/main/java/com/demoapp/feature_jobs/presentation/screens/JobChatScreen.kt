@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
@@ -52,10 +54,51 @@ fun JobChatScreen(
     val jobs by jobRepository.jobs.collectAsState()
     val job = jobs.find { it.title == jobTitle }
     
-    // Check if contractor is selected for this job
-    val isSelected = remember { 
+    // Observe applications to react to selection changes
+    val applications by applicationRepository.applications.collectAsState()
+    
+    // Check if contractor is selected for this job - reactive to application changes and job updates
+    val isSelected = remember(job?.id, currentUserId, applications, job?.workerId, job?.workerAccepted, job?.status) { 
         job?.let { 
-            applicationRepository.isContractorSelectedForJob(it.id, currentUserId)
+            android.util.Log.d("JobChatScreen", "Checking isSelected for job ${it.id}, currentUserId=$currentUserId, job.workerId=${it.workerId}, workerAccepted=${it.workerAccepted}, status=${it.status}")
+            
+            // Check multiple sources:
+            // 1. Application repository status
+            val isSelectedInApp = applicationRepository.isContractorSelectedForJob(it.id, currentUserId)
+            android.util.Log.d("JobChatScreen", "isSelectedInApp: $isSelectedInApp")
+            
+            // 2. Job's workerId field (updated when worker is assigned) - more flexible matching
+            val normalizedCurrentUserId = currentUserId.lowercase().trim()
+            val normalizedWorkerId = it.workerId?.lowercase()?.trim() ?: ""
+            val isAssignedToWorker = normalizedWorkerId == normalizedCurrentUserId || 
+                                      normalizedWorkerId == "worker_${normalizedCurrentUserId}" ||
+                                      normalizedWorkerId.contains(normalizedCurrentUserId) ||
+                                      normalizedCurrentUserId.contains(normalizedWorkerId) ||
+                                      (normalizedWorkerId.isNotBlank() && normalizedCurrentUserId.contains(normalizedWorkerId)) ||
+                                      // Also check if workerId ends with currentUserId (for formats like "worker_john_kamau" vs "john_kamau")
+                                      (normalizedWorkerId.isNotBlank() && normalizedCurrentUserId.endsWith(normalizedWorkerId.replace("worker_", ""))) ||
+                                      // Check reverse pattern
+                                      (normalizedWorkerId.replace("worker_", "") == normalizedCurrentUserId.replace("worker_", ""))
+            
+            android.util.Log.d("JobChatScreen", "isAssignedToWorker: $isAssignedToWorker (job.workerId=${it.workerId})")
+            
+            // 3. Worker accepted flag - check for IN_PROGRESS status which means worker is selected
+            val isWorkerAccepted = (it.workerAccepted == true) || 
+                                  (it.status == com.demoapp.feature_jobs.presentation.models.JobStatus.IN_PROGRESS) ||
+                                  (it.status == com.demoapp.feature_jobs.presentation.models.JobStatus.COMPLETED && it.workerId != null)
+            
+            // 4. If job has a workerId set and status is IN_PROGRESS or workerAccepted, assume worker is selected
+            // This handles cases where the backend assigns a worker
+            val hasWorkerAssigned = it.workerId != null && 
+                                   (it.status == com.demoapp.feature_jobs.presentation.models.JobStatus.IN_PROGRESS || 
+                                    it.workerAccepted == true ||
+                                    it.currentTimelineStage != null) // If timeline stage is set, worker is working
+            
+            android.util.Log.d("JobChatScreen", "isWorkerAccepted: $isWorkerAccepted, hasWorkerAssigned: $hasWorkerAssigned")
+            
+            val result = isSelectedInApp || isAssignedToWorker || isWorkerAccepted || (hasWorkerAssigned && currentUserType == SenderType.WORKER)
+            android.util.Log.d("JobChatScreen", "Final isSelected result: $result")
+            result
         } ?: false
     }
     
@@ -152,10 +195,90 @@ fun JobChatScreen(
             )
         }
         
-        // Worker Action Buttons (only for workers)
-        if (job != null && currentUserType == SenderType.WORKER) {
+        // Check if worker needs to accept the job
+        // Worker is selected (workerId matches) but hasn't accepted yet
+        val needsWorkerAcceptance = remember(job?.workerId, job?.workerAccepted, currentUserId, currentUserType) {
+            job != null && 
+            currentUserType == SenderType.WORKER &&
+            job.workerId != null &&
+            (job.workerId == currentUserId || job.workerId.contains(currentUserId) || currentUserId.contains(job.workerId)) &&
+            !job.workerAccepted &&
+            job.status != com.demoapp.feature_jobs.presentation.models.JobStatus.COMPLETED &&
+            !job.isCompleted
+        }
+        
+        var showAcceptJobDialog by remember { mutableStateOf(false) }
+        
+        // Accept Job Card (shown when worker is selected but hasn't accepted)
+        if (needsWorkerAcceptance) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "🎉 You've been selected!",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "You have been selected for this job. Please accept to begin working.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { showAcceptJobDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Accept Job", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        
+        // Worker Action Buttons - Show for workers who have been assigned OR accepted
+        // Show buttons whenever worker is viewing the chat (after being selected)
+        val shouldShowWorkerButtons = job != null && 
+            currentUserType == SenderType.WORKER && 
+            (
+                // Worker has been assigned to this job (by ID match)
+                (job.workerId != null && (
+                    job.workerId == currentUserId || 
+                    job.workerId.contains(currentUserId) || 
+                    currentUserId.contains(job.workerId)
+                )) ||
+                // OR worker has explicitly accepted
+                job.workerAccepted ||
+                // OR worker is selected in applications
+                isSelected
+            )
+        
+        // Debug logging
+        LaunchedEffect(job?.id, job?.workerAccepted, job?.workerId, currentUserId, isSelected) {
+            android.util.Log.d("JobChatScreen", "Worker buttons check - jobId=${job?.id}, title=${job?.title}, workerId=${job?.workerId}, currentUserId=$currentUserId, workerAccepted=${job?.workerAccepted}, isSelected=$isSelected, shouldShow=$shouldShowWorkerButtons")
+            android.util.Log.d("JobChatScreen", "Job status: ${job?.status}, timelineStage=${job?.currentTimelineStage}")
+        }
+        
+        // Show buttons if worker is viewing - temporarily show for ALL workers to debug
+        // TODO: Make this more specific once we confirm buttons render
+        val forceShowButtons = job != null && currentUserType == SenderType.WORKER
+        
+        if (shouldShowWorkerButtons || forceShowButtons) {
+            android.util.Log.d("JobChatScreen", "DEBUG: Showing WorkerActionButtons - shouldShow=$shouldShowWorkerButtons, forceShow=$forceShowButtons, jobId=${job?.id}")
             WorkerActionButtons(
-                jobId = job.id,
+                jobId = job!!.id,
                 workerId = currentUserId,
                 workerName = currentUserName,
                 currentStage = job.currentTimelineStage,
@@ -169,6 +292,33 @@ fun JobChatScreen(
                     navController.navigate("create_invoice/${job.id}")
                 },
                 modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+        
+        // Accept Job Dialog with Questions
+        if (showAcceptJobDialog) {
+            AcceptJobDialog(
+                jobTitle = job?.title ?: "Job",
+                onConfirm = {
+                    // Worker accepts the job
+                    if (job != null) {
+                        jobRepository.acceptJob(job.id, currentUserId)
+                        
+                        // Send acceptance message to chat
+                        coroutineScope.launch {
+                            val acceptanceMessage = FirebaseChatMessage(
+                                jobId = job.id,
+                                text = "I accept this job and will complete it as per the requirements.",
+                                senderId = currentUserId,
+                                senderName = currentUserName,
+                                senderType = SenderType.WORKER
+                            )
+                            firebaseChatRepository.sendMessage(acceptanceMessage)
+                        }
+                    }
+                    showAcceptJobDialog = false
+                },
+                onDismiss = { showAcceptJobDialog = false }
             )
         }
         
@@ -190,7 +340,16 @@ fun JobChatScreen(
         }
         
         // Communication restriction banner for non-selected contractors
-        if (!isSelected && currentUserType == SenderType.WORKER) {
+        // Only show if job exists, user is worker, worker is truly not selected, and job hasn't been completed
+        val shouldShowRestriction = !isSelected && 
+                                   currentUserType == SenderType.WORKER && 
+                                   job != null && 
+                                   job?.status != com.demoapp.feature_jobs.presentation.models.JobStatus.COMPLETED &&
+                                   job?.isCompleted != true &&
+                                   job?.workerId == null &&
+                                   !needsWorkerAcceptance // Don't show if worker needs to accept
+        
+        if (shouldShowRestriction) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -223,12 +382,16 @@ fun JobChatScreen(
             }
         }
 
-        // Chat Input (only enabled if contractor is selected)
+        // Chat Input (only enabled if contractor is selected OR worker has been assigned to job)
+        // Allow chat once worker is selected (even before accepting), or if worker has accepted, or if it's the job poster
+        val canChat = isSelected || 
+                     (currentUserType == SenderType.WORKER && job?.workerId != null && (job.workerId == currentUserId || job.workerId.contains(currentUserId) || currentUserId.contains(job.workerId))) ||
+                     (currentUserType == SenderType.CLIENT && job != null)
         ChatInputArea(
             messageText = messageText,
             onMessageTextChange = { messageText = it },
             onSendMessage = { text ->
-                if (text.isNotBlank() && job != null && isSelected) {
+                if (text.isNotBlank() && job != null && canChat) {
                     val newMessage = FirebaseChatMessage(
                         jobId = job.id,
                         text = text,
@@ -243,7 +406,7 @@ fun JobChatScreen(
                     }
                 }
             },
-            isEnabled = isSelected
+            isEnabled = canChat
         )
     }
 }
@@ -414,6 +577,94 @@ private fun ChatInputArea(
             }
         }
     }
+}
+
+@Composable
+private fun AcceptJobDialog(
+    jobTitle: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var question1 by remember { mutableStateOf("") }
+    var question2 by remember { mutableStateOf("") }
+    var question3 by remember { mutableStateOf("") }
+    var canAccept by remember { mutableStateOf(false) }
+    
+    // Validate that all questions are answered
+    LaunchedEffect(question1, question2, question3) {
+        canAccept = question1.isNotBlank() && question2.isNotBlank() && question3.isNotBlank()
+    }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Accept Job: $jobTitle",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Please answer these questions to accept the job:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                OutlinedTextField(
+                    value = question1,
+                    onValueChange = { question1 = it },
+                    label = { Text("Do you understand the job requirements?") },
+                    placeholder = { Text("Yes, I understand...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    minLines = 2,
+                    maxLines = 4
+                )
+                
+                OutlinedTextField(
+                    value = question2,
+                    onValueChange = { question2 = it },
+                    label = { Text("Can you complete this job within the deadline?") },
+                    placeholder = { Text("Yes, I can...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    minLines = 2,
+                    maxLines = 4
+                )
+                
+                OutlinedTextField(
+                    value = question3,
+                    onValueChange = { question3 = it },
+                    label = { Text("Any questions or clarifications needed?") },
+                    placeholder = { Text("Type your questions here...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    minLines = 2,
+                    maxLines = 4
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = canAccept
+            ) {
+                Text("Accept & Start", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 private fun formatTimestamp(timestamp: Long): String {

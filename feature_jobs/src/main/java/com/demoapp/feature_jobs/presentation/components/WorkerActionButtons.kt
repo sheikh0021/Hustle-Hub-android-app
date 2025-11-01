@@ -28,134 +28,101 @@ fun WorkerActionButtons(
     var showCompletionDialog by remember { mutableStateOf(false) }
     var showJobCompletionDialog by remember { mutableStateOf(false) }
     
-    // Only show action buttons for workers and when job is in progress
-    if (currentStage != TimelineStage.JOB_COMPLETED) {
-        Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
+    // Debug logging
+    LaunchedEffect(jobId, currentStage) {
+        android.util.Log.d("WorkerActionButtons", "Rendering buttons - jobId=$jobId, currentStage=$currentStage, workerId=$workerId")
+    }
+    
+    // Always show action buttons for workers
+    // This allows workers to update status and see their progress
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "Update Status",
-                    fontSize = 14.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleLarge
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 
-                Row(
+                // Show all status buttons so worker can update to any status at any time
+                // On The Way button - always show
+                StatusButton(
+                    label = "🚗 On The Way",
+                    isActive = currentStage == TimelineStage.WORKER_ON_THE_WAY,
+                    onClick = {
+                        android.util.Log.d("WorkerActionButtons", "On The Way clicked for jobId=$jobId")
+                        timelineRepository.updateTimelineStage(
+                            jobId = jobId,
+                            stage = TimelineStage.WORKER_ON_THE_WAY,
+                            updatedBy = workerId,
+                            updatedByName = workerName,
+                            message = "I'm on my way to the location"
+                        )
+                        onStageUpdated(TimelineStage.WORKER_ON_THE_WAY)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                // Started Working button - always show
+                StatusButton(
+                    label = "🔨 Started Working",
+                    isActive = currentStage == TimelineStage.WORKER_STARTED_JOB,
+                    onClick = {
+                        android.util.Log.d("WorkerActionButtons", "Started Working clicked for jobId=$jobId")
+                        timelineRepository.updateTimelineStage(
+                            jobId = jobId,
+                            stage = TimelineStage.WORKER_STARTED_JOB,
+                            updatedBy = workerId,
+                            updatedByName = workerName,
+                            message = "I've started working on the job"
+                        )
+                        onStageUpdated(TimelineStage.WORKER_STARTED_JOB)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                // Complete button - always show
+                StatusButton(
+                    label = "🎉 Complete",
+                    isActive = currentStage == TimelineStage.JOB_COMPLETED,
+                    onClick = { 
+                        android.util.Log.d("WorkerActionButtons", "Complete clicked for jobId=$jobId")
+                        showJobCompletionDialog = true 
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Accept Job button (when no stage is set)
-                    if (currentStage == null) {
-                        Button(
-                            onClick = {
-                                timelineRepository.updateTimelineStage(
-                                    jobId = jobId,
-                                    stage = TimelineStage.JOB_ACCEPTED,
-                                    updatedBy = workerId,
-                                    updatedByName = workerName,
-                                    message = "I have accepted this job"
-                                )
-                                onStageUpdated(TimelineStage.JOB_ACCEPTED)
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "✅ Accept Job",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                    
-                    // On The Way button
-                    if (currentStage == TimelineStage.JOB_ACCEPTED) {
-                        Button(
-                            onClick = {
-                                timelineRepository.updateTimelineStage(
-                                    jobId = jobId,
-                                    stage = TimelineStage.WORKER_ON_THE_WAY,
-                                    updatedBy = workerId,
-                                    updatedByName = workerName,
-                                    message = "I'm on my way to the location"
-                                )
-                                onStageUpdated(TimelineStage.WORKER_ON_THE_WAY)
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "🚗 On The Way",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                    
-                    // Started Working button
-                    if (currentStage == TimelineStage.WORKER_ON_THE_WAY) {
-                        Button(
-                            onClick = {
-                                timelineRepository.updateTimelineStage(
-                                    jobId = jobId,
-                                    stage = TimelineStage.WORKER_STARTED_JOB,
-                                    updatedBy = workerId,
-                                    updatedByName = workerName,
-                                    message = "I've started working on the job"
-                                )
-                                onStageUpdated(TimelineStage.WORKER_STARTED_JOB)
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "🔨 Started",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                    
-                    // Complete Job button
-                    if (currentStage == TimelineStage.WORKER_STARTED_JOB) {
-                        Button(
-                            onClick = { showJobCompletionDialog = true },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4CAF50)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = "🎉 Complete",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White
-                            )
-                        }
-                    }
+                    backgroundColor = Color(0xFF4CAF50),
+                    textColor = Color.White
+                )
+                
+                // Create Invoice button - show after completion
+                if (currentStage == TimelineStage.JOB_COMPLETED) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    StatusButton(
+                        label = "💰 Create Invoice",
+                        isActive = false,
+                        onClick = {
+                            android.util.Log.d("WorkerActionButtons", "Create Invoice clicked for jobId=$jobId")
+                            onCreateInvoice()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = MaterialTheme.colorScheme.secondary,
+                        textColor = MaterialTheme.colorScheme.onSecondary
+                    )
                 }
             }
         }
-    }
     
     // Job completion dialog
     if (showJobCompletionDialog) {
@@ -182,6 +149,61 @@ fun WorkerActionButtons(
                 onStageUpdated(TimelineStage.JOB_COMPLETED)
             }
         )
+    }
+}
+
+@Composable
+private fun StatusButton(
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = MaterialTheme.colorScheme.primary,
+    textColor: Color = MaterialTheme.colorScheme.onPrimary
+) {
+    // Update time when button becomes active
+    var currentTime by remember { mutableStateOf("") }
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            currentTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                .format(java.util.Date())
+        }
+    }
+    
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isActive) {
+                backgroundColor.copy(alpha = 0.8f)
+            } else {
+                backgroundColor
+            }
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = textColor,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (isActive) {
+                Text(
+                    text = "✓ $currentTime",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = textColor.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
     }
 }
 

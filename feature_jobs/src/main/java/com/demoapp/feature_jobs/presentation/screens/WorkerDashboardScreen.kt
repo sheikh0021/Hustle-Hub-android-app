@@ -1,6 +1,7 @@
 package com.demoapp.feature_jobs.presentation.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -174,7 +177,6 @@ fun WorkerDashboardScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkerNotificationBell(
     workerId: String,
@@ -193,29 +195,38 @@ private fun WorkerNotificationBell(
         }
     }
 
-    BadgedBox(
-        badge = {
-            if (unreadCount > 0) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.error
-                ) {
-                    Text(
-                        text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                        color = MaterialTheme.colorScheme.onError,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-    ) {
+    Box {
         IconButton(
-            onClick = { navController.navigate("worker_notifications") }
+            onClick = { navController.navigate("worker_notifications") },
+            modifier = Modifier.size(48.dp) // Larger button size
         ) {
             Icon(
                 imageVector = Icons.Default.Notifications,
                 contentDescription = "Notifications",
+                modifier = Modifier.size(28.dp), // Larger icon size
                 tint = if (unreadCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
+        }
+        
+        // Custom positioned badge
+        if (unreadCount > 0) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-2).dp, y = 6.dp), // Position badge closer to icon
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.error,
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                    color = MaterialTheme.colorScheme.onError,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                    minLines = 1
+                )
+            }
         }
     }
 }

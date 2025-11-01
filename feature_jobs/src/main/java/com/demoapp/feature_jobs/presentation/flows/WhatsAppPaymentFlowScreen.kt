@@ -1,7 +1,9 @@
 package com.demoapp.feature_jobs.presentation.flows
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -204,32 +206,46 @@ fun WhatsAppPaymentFlowScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    // Placeholder QR Code
+                    // Dummy QR Code Image
                     Card(
-                        modifier = Modifier.size(180.dp),
+                        modifier = Modifier.size(250.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.LightGray
+                            containerColor = MaterialTheme.colorScheme.surface
                         ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
+                            // Dummy QR Code Pattern
                             Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = "QR Code",
-                                    modifier = Modifier.size(60.dp),
-                                    tint = Color.DarkGray
-                                )
-                                Text(
-                                    text = "QR Code",
-                                    fontSize = 12.sp,
-                                    color = Color.DarkGray
-                                )
+                                // Create a simple QR-like pattern
+                                repeat(25) { row ->
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        repeat(25) { col ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .background(
+                                                        color = if ((row + col) % 3 == 0) {
+                                                            MaterialTheme.colorScheme.onSurface
+                                                        } else {
+                                                            MaterialTheme.colorScheme.surfaceVariant
+                                                        },
+                                                        shape = RoundedCornerShape(1.dp)
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -31,10 +31,10 @@ interface TaskApi {
         @Path("id") taskId: String
     ): Response<Unit>
 
-    @POST("api/tasks/{id}/apply")
+    @POST("api/tasks/{task_id}/apply")
     suspend fun applyForTask(
         @Header("Authorization") authorization: String,
-        @Path("id") taskId: String,
+        @Path("task_id") taskId: String,
         @Body request: com.demoapp.core_network.models.ApplyForTaskRequest
     ): Response<com.demoapp.core_network.models.ApplyForTaskResponse>
 
@@ -77,5 +77,11 @@ interface TaskApi {
         @Header("Authorization") authorization: String,
         @Path("id") taskId: String
     ): Response<com.demoapp.core_network.models.CancelTaskResponse>
+
+    @GET("api/tasks/{task_id}")
+    suspend fun getTaskDetails(
+        @Header("Authorization") authorization: String,
+        @Path("task_id") taskId: String
+    ): Response<com.demoapp.core_network.models.TaskDetailsResponse>
 }
 

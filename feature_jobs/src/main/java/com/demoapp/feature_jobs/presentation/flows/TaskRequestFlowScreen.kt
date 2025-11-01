@@ -103,6 +103,7 @@ fun TaskRequestFlowScreen(
     var validationErrors by remember { mutableStateOf(listOf<String>()) }
     var showValidationDialog by remember { mutableStateOf(false) }
     var maxWeightLimit by remember { mutableStateOf("") }
+    var isCreatingTask by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val taskRepository = remember { TaskRepository.getInstance(context) }
@@ -170,69 +171,69 @@ fun TaskRequestFlowScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Enhanced Header Section with Gradient Background
+        // Refined Header Section - Clean and Modern Design
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+                containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            shape = RoundedCornerShape(20.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = RoundedCornerShape(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
             ) {
-                // Back Button with improved styling
+                // Clean Top Bar with Back Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = { 
-                            navController.navigate("client_dashboard") {
-                                popUpTo("client_dashboard") { inclusive = false }
-                            }
-                        },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surface,
-                                RoundedCornerShape(14.dp)
-                            )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
+                        IconButton(
+                            onClick = { 
+                                navController.navigate("client_dashboard") {
+                                    popUpTo("client_dashboard") { inclusive = false }
+                                }
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Post New Job",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = "Back to Dashboard",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
                 }
                 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
-                // Main Content with improved layout
-                Row(
+                // Category Icon and Title Section - Centered and Clean
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Task Icon with enhanced gradient background
+                    // Icon with subtle background
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(72.dp)
                             .background(
-                                MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(24.dp)
+                                MaterialTheme.colorScheme.primaryContainer,
+                                RoundedCornerShape(20.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -240,49 +241,51 @@ fun TaskRequestFlowScreen(
                             imageVector = when (selectedCategory) {
                                 TaskCategory.SHOPPING -> Icons.Default.ShoppingCart
                                 TaskCategory.DELIVERY -> Icons.Default.Home
-                                TaskCategory.SURVEY -> Icons.Default.Settings
+                                TaskCategory.SURVEY -> Icons.Default.Star
                                 TaskCategory.PHOTOGRAPHY -> Icons.Default.Add
                                 else -> Icons.Default.Build
                             },
                             contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     
-                    Spacer(modifier = Modifier.width(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Title and Description with better styling
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Text(
-                            text = when (selectedCategory) {
-                                TaskCategory.SHOPPING -> "Shopping Assistance"
-                                TaskCategory.DELIVERY -> "Package Delivery"
-                                TaskCategory.SURVEY -> "Survey & Research"
-                                TaskCategory.PHOTOGRAPHY -> "Photography Services"
-                                else -> "Task Request"
-                            },
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = when (selectedCategory) {
-                                TaskCategory.SHOPPING -> "Get help with grocery shopping, errands, and purchases"
-                                TaskCategory.DELIVERY -> "Fast and reliable delivery services for your packages"
-                                TaskCategory.SURVEY -> "Data collection, market research, and customer feedback"
-                                TaskCategory.PHOTOGRAPHY -> "Professional photography services for your needs"
-                                else -> "Provide specific task details and requirements"
-                            },
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                            lineHeight = 22.sp
-                        )
-                    }
+                    // Title - Centered
+                    Text(
+                        text = when (selectedCategory) {
+                            TaskCategory.SHOPPING -> "Shopping Assistance"
+                            TaskCategory.DELIVERY -> "Package Delivery"
+                            TaskCategory.SURVEY -> "Survey & Research"
+                            TaskCategory.PHOTOGRAPHY -> "Photography Services"
+                            else -> "Task Request"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Description - Centered with proper line height
+                    Text(
+                        text = when (selectedCategory) {
+                            TaskCategory.SHOPPING -> "Get help with grocery shopping, errands, and purchases"
+                            TaskCategory.DELIVERY -> "Fast and reliable delivery services for your packages"
+                            TaskCategory.SURVEY -> "Data collection, market research, and customer feedback"
+                            TaskCategory.PHOTOGRAPHY -> "Professional photography services for your needs"
+                            else -> "Provide specific task details and requirements"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                    )
                 }
             }
         }
@@ -573,16 +576,15 @@ fun TaskRequestFlowScreen(
                         onClick = {
                             if (currentGoodsName.isNotBlank() && currentGoodsBrand.isNotBlank() && 
                                 currentGoodsPrice.isNotBlank() && currentGoodsQuantity.isNotBlank()) {
-                                goodsList.add(
-                                    GoodsItem(
-                                        name = currentGoodsName,
-                                        brand = currentGoodsBrand,
-                                        description = currentGoodsName,
-                                        price = currentGoodsPrice.toDoubleOrNull() ?: 0.0,
-                                        quantity = currentGoodsQuantity.toIntOrNull() ?: 1,
-                                        category = "General"
-                                    )
-                                )
+                                // Create a new list to trigger recomposition
+                                goodsList = (goodsList + GoodsItem(
+                                    name = currentGoodsName,
+                                    brand = currentGoodsBrand,
+                                    description = currentGoodsName,
+                                    price = currentGoodsPrice.toDoubleOrNull() ?: 0.0,
+                                    quantity = currentGoodsQuantity.toIntOrNull() ?: 1,
+                                    category = "General"
+                                )).toMutableList()
                                 currentGoodsName = ""
                                 currentGoodsBrand = ""
                                 currentGoodsPrice = ""
@@ -650,7 +652,10 @@ fun TaskRequestFlowScreen(
                                         )
                                     }
                                     IconButton(
-                                        onClick = { goodsList.removeAt(index) }
+                                        onClick = { 
+                                            // Create a new list to trigger recomposition
+                                            goodsList = goodsList.filterIndexed { i, _ -> i != index }.toMutableList()
+                                        }
                                     ) {
                                         Icon(
                                             Icons.Default.Delete,
@@ -752,58 +757,268 @@ fun TaskRequestFlowScreen(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = "Task Summary",
-                    fontSize = 16.sp,
+                    fontSize = 18.sp, // Increased from 16.sp
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    color = MaterialTheme.colorScheme.onSurface, // Changed from onTertiaryContainer to black
+                    style = MaterialTheme.typography.titleMedium
                 )
                 
-                Text(
-                    text = "Category: ${selectedCategory.name.lowercase().replaceFirstChar { it.uppercase() }}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                )
-                
-                if (goodsList.isNotEmpty()) {
+                // Category row with aligned text
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Items: ${goodsList.size} items",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                        text = "Category",
+                        fontSize = 14.sp, // Increased from 12.sp
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface, // Changed to black
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = selectedCategory.name.lowercase().replaceFirstChar { it.uppercase() },
+                        fontSize = 14.sp, // Increased from 12.sp
+                        color = MaterialTheme.colorScheme.onSurface, // Changed to black
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Normal
                     )
                 }
                 
-                Text(
-                    text = "Budget: KES $budget",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                )
+                // Items row with aligned text (if items exist)
+                if (goodsList.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Items",
+                            fontSize = 14.sp, // Increased from 12.sp
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface, // Changed to black
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${goodsList.size} items",
+                            fontSize = 14.sp, // Increased from 12.sp
+                            color = MaterialTheme.colorScheme.onSurface, // Changed to black
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+                }
+                
+                // Budget row with aligned text
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Budget",
+                        fontSize = 14.sp, // Increased from 12.sp
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface, // Changed to black
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "KES $budget",
+                        fontSize = 14.sp, // Increased from 12.sp
+                        color = MaterialTheme.colorScheme.onSurface, // Changed to black
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
             }
         }
 
         // Submit Button
         Button(
             onClick = { 
-                // Validate mandatory fields before navigation
+                // Validate mandatory fields before creating task
                 val errors = validateMandatoryFields()
                 if (errors.isEmpty()) {
-                    val jobId = "job_${System.currentTimeMillis()}"
-                    navController.navigate("job_validation_chatbot/${selectedCategory.name}/$jobId")
+                    // Create task via backend API first
+                    isCreatingTask = true
+                    coroutineScope.launch {
+                        try {
+                            // Build the request based on category
+                            val req = when (selectedCategory) {
+                                TaskCategory.SHOPPING -> {
+                                    com.demoapp.core_network.models.TaskCreateRequest(
+                                        title = when (selectedCategory) {
+                                            TaskCategory.SHOPPING -> "Grocery Shopping"
+                                            TaskCategory.DELIVERY -> "Package Delivery"
+                                            TaskCategory.SURVEY -> "Survey Task"
+                                            else -> taskDescription.ifBlank { "Task" }
+                                        },
+                                        task_description = taskDescription.ifBlank { "Task request" },
+                                        category = "shopping",
+                                        store_service_location = storeLocation,
+                                        delivery_location = deliveryLocation,
+                                        budget_kes = budget.toDoubleOrNull() ?: 0.0,
+                                        due_date = java.time.Instant.now().plusSeconds(86400).toString(),
+                                        store_service_latitude = null,
+                                        store_service_longitude = null,
+                                        delivery_latitude = null,
+                                        delivery_longitude = null,
+                                        shopping_items = goodsList.map {
+                                            com.demoapp.core_network.models.ShoppingItemRequest(
+                                                item_name = it.name,
+                                                brand = it.brand.ifBlank { null },
+                                                price = it.price,
+                                                quantity = it.quantity
+                                            )
+                                        },
+                                        package_items = null,
+                                        survey_items = null
+                                    )
+                                }
+                                TaskCategory.DELIVERY -> {
+                                    com.demoapp.core_network.models.TaskCreateRequest(
+                                        title = "Package Delivery",
+                                        task_description = taskDescription.ifBlank { "Package delivery request" },
+                                        category = "delivery",
+                                        store_service_location = storeLocation,
+                                        delivery_location = deliveryLocation,
+                                        budget_kes = budget.toDoubleOrNull() ?: 0.0,
+                                        due_date = java.time.Instant.now().plusSeconds(86400).toString(),
+                                        store_service_latitude = null,
+                                        store_service_longitude = null,
+                                        delivery_latitude = null,
+                                        delivery_longitude = null,
+                                        shopping_items = null,
+                                        package_items = goodsList.map {
+                                            com.demoapp.core_network.models.PackageItemRequest(
+                                                package_description = it.name,
+                                                package_type = it.brand.ifBlank { "General" },
+                                                weight = it.price, // Using price field for weight
+                                                quantity = it.quantity
+                                            )
+                                        },
+                                        survey_items = null
+                                    )
+                                }
+                                TaskCategory.SURVEY -> {
+                                    com.demoapp.core_network.models.TaskCreateRequest(
+                                        title = "Survey Task",
+                                        task_description = taskDescription.ifBlank { "Survey request" },
+                                        category = "survey",
+                                        store_service_location = storeLocation,
+                                        delivery_location = deliveryLocation,
+                                        budget_kes = budget.toDoubleOrNull() ?: 0.0,
+                                        due_date = java.time.Instant.now().plusSeconds(86400).toString(),
+                                        store_service_latitude = null,
+                                        store_service_longitude = null,
+                                        delivery_latitude = null,
+                                        delivery_longitude = null,
+                                        shopping_items = null,
+                                        package_items = null,
+                                        survey_items = goodsList.map {
+                                            com.demoapp.core_network.models.SurveyItemRequest(
+                                                survey_topic = it.name,
+                                                audience = it.brand.ifBlank { "General" },
+                                                duration = it.price.toInt(), // Using price as duration
+                                                number_of_people = it.quantity
+                                            )
+                                        }
+                                    )
+                                }
+                                else -> {
+                                    com.demoapp.core_network.models.TaskCreateRequest(
+                                        title = taskDescription.ifBlank { "Task" },
+                                        task_description = taskDescription.ifBlank { "Task request" },
+                                        category = "shopping",
+                                        store_service_location = storeLocation,
+                                        delivery_location = deliveryLocation,
+                                        budget_kes = budget.toDoubleOrNull() ?: 0.0,
+                                        due_date = java.time.Instant.now().plusSeconds(86400).toString(),
+                                        store_service_latitude = null,
+                                        store_service_longitude = null,
+                                        delivery_latitude = null,
+                                        delivery_longitude = null,
+                                        shopping_items = goodsList.map {
+                                            com.demoapp.core_network.models.ShoppingItemRequest(
+                                                item_name = it.name,
+                                                brand = it.brand.ifBlank { null },
+                                                price = it.price,
+                                                quantity = it.quantity
+                                            )
+                                        },
+                                        package_items = null,
+                                        survey_items = null
+                                    )
+                                }
+                            }
+
+                            android.util.Log.d("TaskRequestFlowScreen", "Creating task via API...")
+                            val result = taskRepository.createTask(req)
+                            result.fold(
+                                onSuccess = { resp ->
+                                    val created = resp.data
+                                    val backendTaskId = created?.id?.toString() ?: System.currentTimeMillis().toString()
+                                    android.util.Log.d("TaskRequestFlowScreen", "Task created successfully with ID: $backendTaskId")
+                                    
+                                    // Add to local repository for UI display
+                                    val jobData = JobData(
+                                        id = backendTaskId,
+                                        title = created?.title ?: req.title ?: "Task",
+                                        description = created?.task_description ?: req.task_description,
+                                        pay = created?.budget_kes?.toDoubleOrNull() ?: req.budget_kes,
+                                        distance = 0.0,
+                                        deadline = created?.due_date ?: "",
+                                        jobType = created?.category ?: req.category,
+                                        clientId = "client_mary_johnson",
+                                        status = com.demoapp.feature_jobs.presentation.models.JobStatus.ACTIVE,
+                                        deliveryAddress = created?.delivery_location
+                                    )
+                                    com.demoapp.feature_jobs.data.JobRepositorySingleton.instance.addJob(jobData)
+                                    
+                                    // Navigate to payment screen with the backend task ID
+                                    navController.navigate("payment_qr/$backendTaskId")
+                                },
+                                onFailure = { error ->
+                                    android.util.Log.e("TaskRequestFlowScreen", "Create task failed: ${error.message}")
+                                    isCreatingTask = false
+                                    // Show error - could show a dialog here
+                                    validationErrors = listOf("Failed to create task: ${error.message}")
+                                    showValidationDialog = true
+                                }
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.e("TaskRequestFlowScreen", "Exception creating task", e)
+                            isCreatingTask = false
+                            validationErrors = listOf("Error: ${e.message}")
+                            showValidationDialog = true
+                        }
+                    }
                 } else {
                     validationErrors = errors
                     showValidationDialog = true
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = isFormValid()
+            enabled = isFormValid() && !isCreatingTask
         ) {
-            Text(
-                text = "Create Task & Pay",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (isCreatingTask) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Creating Task...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            } else {
+                Text(
+                    text = "Create Task & Pay",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 
@@ -845,39 +1060,71 @@ fun TaskRequestFlowScreen(
             onDismiss = { showPaymentDialog = false },
             onSubmitTask = {
                 showPaymentDialog = false
-                // Create task and navigate to payment flow
-                val newTask = TaskData(
-                    id = java.util.UUID.randomUUID().toString(),
-                    title = taskDescription,
-                    description = taskDescription,
-                    category = selectedCategory,
-                    status = TaskStatus.PENDING_PAYMENT,
-                    budget = budget.toDoubleOrNull() ?: 0.0,
-                    location = TaskLocation(
-                        storeLocation = LocationDetails(
-                            address = storeLocation,
-                            latitude = 0.0,
-                            longitude = 0.0,
-                            city = "N/A"
-                        ),
-                        deliveryLocation = LocationDetails(
-                            address = deliveryLocation,
-                            latitude = 0.0,
-                            longitude = 0.0,
-                            city = "N/A"
-                        )
-                    ),
-                    goods = goodsList.toList(),
-                    paymentStatus = com.demoapp.feature_jobs.domain.models.PaymentStatus.PENDING,
-                    jobRequesterId = "job_requester_1" // Default requester ID
-                )
+                // Create task via backend and navigate to payment flow
                 coroutineScope.launch {
-                    // TODO: Convert TaskData to API format and call createTask
-                    // For now, this is a stub - the actual API call should use the proper format
-                    android.util.Log.w("TaskRequestFlowScreen", "createTask call needs to be converted to API format")
+                    try {
+                        val req = com.demoapp.core_network.models.TaskCreateRequest(
+                            title = when (selectedCategory) {
+                                TaskCategory.SHOPPING -> "Grocery Shopping"
+                                TaskCategory.DELIVERY -> "Package Delivery"
+                                TaskCategory.SURVEY -> "Survey Task"
+                                else -> taskDescription.ifBlank { "Task" }
+                            },
+                            task_description = taskDescription.ifBlank { "Task request" },
+                            category = when (selectedCategory) {
+                                TaskCategory.SHOPPING -> "shopping"
+                                TaskCategory.DELIVERY -> "delivery"
+                                TaskCategory.SURVEY -> "survey"
+                                else -> "shopping"
+                            },
+                            store_service_location = storeLocation,
+                            delivery_location = deliveryLocation,
+                            budget_kes = budget.toDoubleOrNull() ?: 0.0,
+                            due_date = java.time.Instant.now().plusSeconds(86400).toString(),
+                            store_service_latitude = null,
+                            store_service_longitude = null,
+                            delivery_latitude = null,
+                            delivery_longitude = null,
+                            shopping_items = if (selectedCategory == TaskCategory.SHOPPING) goodsList.map {
+                                com.demoapp.core_network.models.ShoppingItemRequest(
+                                    item_name = it.name,
+                                    brand = it.brand.ifBlank { null },
+                                    price = it.price,
+                                    quantity = it.quantity
+                                )
+                            } else null,
+                            package_items = null,
+                            survey_items = null
+                        )
+
+                        val result = taskRepository.createTask(req)
+                        result.fold(
+                            onSuccess = { resp ->
+                                val created = resp.data
+                                val localJobId = (created?.id ?: System.currentTimeMillis().toInt()).toString()
+                                val jobData = JobData(
+                                    id = localJobId,
+                                    title = created?.title ?: req.title ?: "Task",
+                                    description = created?.task_description ?: req.task_description,
+                                    pay = created?.budget_kes?.toDoubleOrNull() ?: req.budget_kes,
+                                    distance = 0.0,
+                                    deadline = created?.due_date ?: "",
+                                    jobType = created?.category ?: req.category,
+                                    clientId = "client_mary_johnson",
+                                    status = com.demoapp.feature_jobs.presentation.models.JobStatus.ACTIVE,
+                                    deliveryAddress = created?.delivery_location
+                                )
+                                com.demoapp.feature_jobs.data.JobRepositorySingleton.instance.addJob(jobData)
+                                navController.navigate("payment_qr/${jobData.id}")
+                            },
+                            onFailure = {
+                                android.util.Log.e("TaskRequestFlowScreen", "Create task failed: ${it.message}")
+                            }
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("TaskRequestFlowScreen", "Error creating task", e)
+                    }
                 }
-                // Navigate to payment flow instead of dashboard
-                navController.navigate("payment_qr/${newTask.id}")
             }
         )
     }

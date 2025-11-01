@@ -20,12 +20,13 @@ import androidx.compose.ui.platform.LocalContext
 import com.demoapp.feature_jobs.data.TaskRepository
 import com.demoapp.feature_jobs.data.JobApplicationRepository
 import com.demoapp.feature_jobs.data.NotificationRepository
-import com.demoapp.feature_jobs.data.JobRepository
+import com.demoapp.feature_jobs.data.JobRepositorySingleton
 import com.demoapp.feature_jobs.presentation.models.JobApplication
 import com.demoapp.feature_jobs.presentation.models.ApplicationStatus
 import com.demoapp.feature_jobs.presentation.components.AvailabilityStatusComponent
 import com.demoapp.feature_jobs.presentation.components.AvailabilityStatus
 import java.util.Date
+import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,8 @@ fun ContractorApplicationScreen(
     var additionalNotes by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
     
     // Check if contractor has a profile (in real app, this would check user session)
     var hasContractorProfile by remember { mutableStateOf(false) }
@@ -72,7 +75,8 @@ fun ContractorApplicationScreen(
     
     val applicationRepository = JobApplicationRepository.getInstance()
     val notificationRepository = NotificationRepository.getInstance()
-    val jobRepository = JobRepository()
+    val jobRepository = JobRepositorySingleton.instance
+    val jobs by jobRepository.jobs.collectAsState()
     
     Column(
         modifier = modifier
@@ -97,8 +101,9 @@ fun ContractorApplicationScreen(
             
             Text(
                 text = "Apply for Job",
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(start = 8.dp)
             )
         }
@@ -116,7 +121,7 @@ fun ContractorApplicationScreen(
             ) {
                 Text(
                     text = "Job Details",
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -125,14 +130,18 @@ fun ContractorApplicationScreen(
                 
                 Text(
                     text = jobTitle,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                
+                Spacer(modifier = Modifier.height(4.dp))
                 
                 Text(
                     text = "Job ID: $jobId",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth()
                 )
                 
                 if (isDeliveryTask) {
@@ -165,7 +174,7 @@ fun ContractorApplicationScreen(
                 Column {
                     Text(
                         text = "Your Availability Status",
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -174,7 +183,7 @@ fun ContractorApplicationScreen(
                     
                     Text(
                         text = "This shows your current status to clients",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
@@ -312,19 +321,129 @@ fun ContractorApplicationScreen(
         Button(
             onClick = {
                 val proposedPrice = proposedPriceInput.toDoubleOrNull()
-                if (applicationMessage.isNotBlank() && proposedPrice != null) {
-                    isSubmitting = true
-                    coroutineScope.launch {
-                        val result = taskRepository.applyForTask(jobId, proposedPrice, applicationMessage)
-                        result.fold(
-                            onSuccess = {
+                if (proposedPrice == null) {
+                    errorMessage = "Please enter a valid proposed price"
+                    showErrorDialog = true
+                    return@Button
+                }
+                if (applicationMessage.isBlank()) {
+                    errorMessage = "Please enter an application message"
+                    showErrorDialog = true
+                    return@Button
+                }
+                
+                isSubmitting = true
+                errorMessage = null
+                coroutineScope.launch {
+                    try {
+                        // Check if jobId is numeric (backend job) or string (sample job)
+                        val isBackendJob = jobId.toIntOrNull() != null && jobId.toIntOrNull()!! > 0
+                        
+                        if (isBackendJob) {
+                            // For backend jobs, call the API
+                            val result = taskRepository.applyForTask(jobId, proposedPrice, applicationMessage)
+                            result.fold(
+                                onSuccess = { response ->
+                                    android.util.Log.d("ContractorApplicationScreen", "Application submitted successfully: ${response.message}")
+                                    
+                                    // Notify the job poster locally
+                                    val job = jobs.find { it.id == jobId }
+                                    val clientId = job?.clientId ?: "client_unknown"
+                                    
+                                    android.util.Log.d("ContractorApplicationScreen", "Creating notification for clientId: $clientId, jobId: $jobId")
+                                    
+                                    // Create notification for the job poster
+                                    notificationRepository.createJobApplicationNotification(
+                                        jobId = jobId,
+                                        jobTitle = jobTitle,
+                                        clientId = clientId,
+                                        workerId = "worker_current_user", // Replace with actual current worker id from session when available
+                                        workerName = "Current Worker" // Replace with actual worker name
+                                    )
+                                    
+                                    android.util.Log.d("ContractorApplicationScreen", "Notification created successfully")
+                                    
+                                    isSubmitting = false
+                                    showSuccessDialog = true
+                                },
+                                onFailure = { exception ->
+                                    android.util.Log.e("ContractorApplicationScreen", "Application submission failed", exception)
+                                    // Extract a cleaner error message from the exception
+                                    val errorMsg = exception.message ?: "Failed to submit application"
+                                    // Check for authentication errors and redirect
+                                    if (errorMsg.contains("Authentication", ignoreCase = true) || 
+                                        errorMsg.contains("token", ignoreCase = true) ||
+                                        errorMsg.contains("token not found", ignoreCase = true) ||
+                                        errorMsg.contains("session expired", ignoreCase = true)) {
+                                        // Redirect to login screen
+                                        navController.navigate("auth") {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                        errorMessage = "Your session has expired. Redirecting to login..."
+                                    } else {
+                                        errorMessage = when {
+                                            errorMsg.contains("404") || errorMsg.contains("Page not found") -> 
+                                                "This job is no longer available. Please try applying for a different job."
+                                            errorMsg.contains("Task is not available for applications", ignoreCase = true) ||
+                                            errorMsg.contains("not available for applications", ignoreCase = true) ->
+                                                "This task is not currently accepting applications.\n\nPossible reasons:\n• Payment verification pending\n• Task already assigned to another worker\n• Task has been completed or cancelled\n\nPlease try applying for a different task or check back later."
+                                            errorMsg.contains("400") && errorMsg.contains("not available") ->
+                                                "This task is not currently accepting applications.\n\nPossible reasons:\n• Payment verification pending\n• Task already assigned to another worker\n• Task has been completed or cancelled\n\nPlease try applying for a different task or check back later."
+                                            errorMsg.length > 200 -> 
+                                                "Failed to submit application. Please check your internet connection and try again."
+                                            else -> errorMsg
+                                        }
+                                    }
+                                    isSubmitting = false
+                                    showErrorDialog = true
+                                }
+                            )
+                        } else {
+                            // For sample jobs, just apply locally without API call
+                            android.util.Log.d("ContractorApplicationScreen", "Applying for sample job locally: $jobId")
+                            
+                            // Find the job and apply locally
+                            val job = jobs.find { it.id == jobId }
+                            if (job != null) {
+                                // Create local application with proposed price in the message
+                                val messageWithPrice = "Proposed Price: KES $proposedPrice\n\n${applicationMessage}"
+                                val application = JobApplication(
+                                    id = "app_${System.currentTimeMillis()}",
+                                    jobId = jobId,
+                                    workerId = "worker_current_user",
+                                    workerName = "Current Worker",
+                                    workerPhone = "+254700000000", // Default phone, replace with actual user phone
+                                    applicationMessage = messageWithPrice,
+                                    appliedAt = Date(),
+                                    status = ApplicationStatus.PENDING
+                                )
+                                applicationRepository.submitApplication(application)
+                                
+                                // Notify the job poster locally
+                                val clientId = job.clientId ?: "client_unknown"
+                                notificationRepository.createJobApplicationNotification(
+                                    jobId = jobId,
+                                    jobTitle = jobTitle,
+                                    clientId = clientId,
+                                    workerId = "worker_current_user",
+                                    workerName = "Current Worker"
+                                )
+                                
+                                android.util.Log.d("ContractorApplicationScreen", "Sample job application submitted locally")
+                                isSubmitting = false
                                 showSuccessDialog = true
-                            },
-                            onFailure = {
-                                // Optionally show snackbar/toast in real app
+                            } else {
+                                android.util.Log.e("ContractorApplicationScreen", "Sample job not found: $jobId")
+                                errorMessage = "Job not found. Please try again."
+                                isSubmitting = false
+                                showErrorDialog = true
                             }
-                        )
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("ContractorApplicationScreen", "Unexpected error submitting application", e)
+                        errorMessage = "An unexpected error occurred. Please try again."
                         isSubmitting = false
+                        showErrorDialog = true
                     }
                 }
             },
@@ -363,7 +482,10 @@ fun ContractorApplicationScreen(
     // Success Dialog
     if (showSuccessDialog) {
         AlertDialog(
-            onDismissRequest = { showSuccessDialog = false },
+            onDismissRequest = { 
+                showSuccessDialog = false
+                navController.popBackStack()
+            },
             title = {
                 Text(
                     text = "Application Submitted!",
@@ -378,6 +500,39 @@ fun ContractorApplicationScreen(
                     onClick = {
                         showSuccessDialog = false
                         navController.popBackStack()
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+    
+    // Error Dialog
+    if (showErrorDialog && errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showErrorDialog = false
+                errorMessage = null
+            },
+            title = {
+                Text(
+                    text = "Application Failed",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = errorMessage ?: "An unknown error occurred",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showErrorDialog = false
+                        errorMessage = null
                     }
                 ) {
                     Text("OK")

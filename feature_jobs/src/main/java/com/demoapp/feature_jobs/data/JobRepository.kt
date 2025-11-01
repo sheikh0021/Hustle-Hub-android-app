@@ -47,26 +47,50 @@ class JobRepository {
         val jobIndex = currentJobs.indexOfFirst { it.id == jobId }
         if (jobIndex != -1) {
             val job = currentJobs[jobIndex]
-            val timelineId = "timeline_${System.currentTimeMillis()}"
             
+            // When assigning worker, set workerId but DON'T set workerAccepted yet
+            // Worker must accept the job explicitly in the chat
             currentJobs[jobIndex] = job.copy(
                 workerId = workerId,
-                status = JobStatus.IN_PROGRESS,
-                workerAccepted = true,
-                currentTimelineStage = com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_ACCEPTED,
-                timelineId = timelineId
+                status = JobStatus.ACTIVE, // Keep as ACTIVE until worker accepts
+                workerAccepted = false, // Worker needs to accept explicitly
+                currentTimelineStage = null, // No timeline stage until worker accepts
+                timelineId = null
             )
             _jobs.value = currentJobs
+        }
+    }
+    
+    /**
+     * Worker accepts the job (called from chat screen after worker confirms)
+     */
+    fun acceptJob(jobId: String, workerId: String) {
+        val currentJobs = _jobs.value.toMutableList()
+        val jobIndex = currentJobs.indexOfFirst { it.id == jobId }
+        if (jobIndex != -1) {
+            val job = currentJobs[jobIndex]
+            val timelineId = "timeline_${System.currentTimeMillis()}"
             
-            // Create timeline for this job
-            val timelineRepository = JobTimelineRepository.getInstance()
-            timelineRepository.createTimelineForJob(
-                jobId = jobId,
-                workerId = workerId,
-                workerName = "Worker Name", // This should come from worker data
-                clientId = job.clientId,
-                clientName = "Client Name" // This should come from client data
-            )
+            // Only update if the workerId matches
+            if (job.workerId == workerId || job.workerId?.contains(workerId) == true || workerId.contains(job.workerId ?: "")) {
+                currentJobs[jobIndex] = job.copy(
+                    workerAccepted = true,
+                    status = JobStatus.IN_PROGRESS,
+                    currentTimelineStage = com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_ACCEPTED,
+                    timelineId = timelineId
+                )
+                _jobs.value = currentJobs
+                
+                // Create timeline for this job
+                val timelineRepository = JobTimelineRepository.getInstance()
+                timelineRepository.createTimelineForJob(
+                    jobId = jobId,
+                    workerId = workerId,
+                    workerName = "Worker Name", // This should come from worker data
+                    clientId = job.clientId,
+                    clientName = "Client Name" // This should come from client data
+                )
+            }
         }
     }
 
@@ -74,26 +98,54 @@ class JobRepository {
         val currentJobs = _jobs.value.toMutableList()
         val jobIndex = currentJobs.indexOfFirst { it.id == jobId }
         if (jobIndex != -1) {
-            currentJobs[jobIndex] = currentJobs[jobIndex].copy(
+            val job = currentJobs[jobIndex]
+            currentJobs[jobIndex] = job.copy(
                 currentTimelineStage = stage,
                 isCompleted = stage == com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_COMPLETED,
-                completedAt = if (stage == com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_COMPLETED) java.util.Date() else null
+                completedAt = if (stage == com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_COMPLETED) java.util.Date() else null,
+                // If setting to JOB_COMPLETED, also update status to COMPLETED
+                status = if (stage == com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_COMPLETED) 
+                    JobStatus.COMPLETED 
+                else 
+                    job.status
             )
             _jobs.value = currentJobs
         }
+    }
+    
+    fun updateJob(job: JobData) {
+        val currentJobs = _jobs.value.toMutableList()
+        val jobIndex = currentJobs.indexOfFirst { it.id == job.id }
+        if (jobIndex != -1) {
+            currentJobs[jobIndex] = job
+            android.util.Log.d("JobRepository", "Updated existing job ${job.id}: status=${job.status}, invoiceCreated=${job.invoiceCreated}, isCompleted=${job.isCompleted}")
+        } else {
+            // Upsert: add if not present
+            currentJobs.add(job)
+            android.util.Log.d("JobRepository", "Added new job ${job.id}: status=${job.status}, invoiceCreated=${job.invoiceCreated}, isCompleted=${job.isCompleted}")
+        }
+        _jobs.value = currentJobs
+        android.util.Log.d("JobRepository", "Total jobs in repository after update: ${_jobs.value.size}")
     }
 
     fun createInvoiceForJob(jobId: String, invoiceId: String): Boolean {
         val currentJobs = _jobs.value.toMutableList()
         val jobIndex = currentJobs.indexOfFirst { it.id == jobId }
-        if (jobIndex != -1 && !currentJobs[jobIndex].invoiceCreated) {
-            currentJobs[jobIndex] = currentJobs[jobIndex].copy(
+        if (jobIndex != -1) {
+            val existingJob = currentJobs[jobIndex]
+            currentJobs[jobIndex] = existingJob.copy(
                 invoiceCreated = true,
-                invoiceId = invoiceId
+                invoiceId = invoiceId,
+                status = JobStatus.COMPLETED, // Also mark as completed when invoice is created
+                isCompleted = true,
+                currentTimelineStage = com.demoapp.feature_jobs.presentation.models.TimelineStage.JOB_COMPLETED,
+                completedAt = java.util.Date()
             )
             _jobs.value = currentJobs
+            android.util.Log.d("JobRepository", "Invoice created for job $jobId, status set to COMPLETED")
             return true
         }
+        android.util.Log.w("JobRepository", "Job not found for invoice creation: $jobId")
         return false
     }
 
@@ -138,6 +190,7 @@ class JobRepository {
     }
 
     fun initializeSampleData() {
+        // Keep only 2 sample jobs - rest should come from backend
         val sampleJobs = listOf(
             JobData(
                 id = "sample_grocery_1",
@@ -187,144 +240,6 @@ class JobRepository {
                 dropoffLat = -6.1730,
                 dropoffLng = 35.7419,
                 parcelDescription = "Small electronics package, fragile"
-            ),
-            JobData(
-                id = "sample_survey_1",
-                title = "Customer Survey",
-                description = "Conduct survey at the mall",
-                pay = 20.0,
-                distance = 1.8,
-                deadline = "Today, 8:00 PM",
-                jobType = "Survey",
-                clientId = "client_sarah_brown", // Different client ID
-                clientPhoneNumber = "+254734567890",
-                status = JobStatus.ACTIVE,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null,
-                // Location data
-                latitude = -6.1780,
-                longitude = 35.7460,
-                locationName = "Dodoma Mall",
-                targetArea = "Dodoma Central Mall - Customer Survey Area",
-                surveyLat = -6.1780,
-                surveyLng = 35.7460,
-                surveyQuestions = "Customer satisfaction survey - 10 questions"
-            ),
-            JobData(
-                id = "sample_cleaning_1",
-                title = "House Cleaning",
-                description = "Clean a 2-bedroom apartment",
-                pay = 45.0,
-                distance = 3.1,
-                deadline = "Today, 4:00 PM",
-                jobType = "Cleaning",
-                status = JobStatus.ACTIVE,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null,
-                // Location data
-                latitude = -6.1690,
-                longitude = 35.7370,
-                locationName = "Downtown Apartments",
-                deliveryAddress = "321 Apartment Complex, Dodoma, Tanzania",
-                deliveryLat = -6.1690,
-                deliveryLng = 35.7370
-            ),
-            JobData(
-                id = "sample_pet_1",
-                title = "Pet Walking",
-                description = "Walk a friendly dog for 30 minutes",
-                pay = 15.0,
-                distance = 1.2,
-                deadline = "Today, 7:00 PM",
-                jobType = "Pet Care",
-                status = JobStatus.ACTIVE,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null
-            ),
-            JobData(
-                id = "sample_driver_1",
-                title = "Driver Needed",
-                description = "Drive client to airport and back",
-                pay = 75.0,
-                distance = 12.5,
-                deadline = "Tomorrow, 9:00 AM",
-                jobType = "Driver",
-                status = JobStatus.ACTIVE,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null
-            ),
-            JobData(
-                id = "sample_tech_1",
-                title = "Tech Support",
-                description = "Help set up home WiFi network",
-                pay = 30.0,
-                distance = 4.0,
-                deadline = "Today, 5:00 PM",
-                jobType = "Tech Support",
-                status = JobStatus.ACTIVE,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null
-            ),
-            JobData(
-                id = "sample_tutoring_1",
-                title = "Math Tutoring",
-                description = "Help with high school math homework",
-                pay = 40.0,
-                distance = 2.0,
-                deadline = "Tomorrow, 3:00 PM",
-                jobType = "Tutoring",
-                status = JobStatus.ACTIVE,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null
-            ),
-            // Completed jobs for testing invoice creation
-            JobData(
-                id = "completed_grocery_1",
-                title = "Grocery Shopping - Completed",
-                description = "Successfully completed grocery shopping task",
-                pay = 30.0,
-                distance = 2.0,
-                deadline = "Yesterday, 6:00 PM",
-                jobType = "Shopping",
-                status = JobStatus.COMPLETED,
-                workerAccepted = true,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null
-            ),
-            JobData(
-                id = "completed_delivery_1",
-                title = "Package Delivery - Completed",
-                description = "Successfully delivered package to client",
-                pay = 40.0,
-                distance = 3.5,
-                deadline = "Yesterday, 2:00 PM",
-                jobType = "Delivery",
-                status = JobStatus.COMPLETED,
-                workerAccepted = true,
-                invoiceCreated = true,
-                invoiceId = "INV-001",
-                cancellationReason = null
-            ),
-            JobData(
-                id = "completed_survey_1",
-                title = "Customer Survey - Completed",
-                description = "Successfully conducted customer survey",
-                pay = 25.0,
-                distance = 1.5,
-                deadline = "Yesterday, 8:00 PM",
-                jobType = "Survey",
-                status = JobStatus.COMPLETED,
-                workerAccepted = true,
-                invoiceCreated = false,
-                invoiceId = null,
-                cancellationReason = null
             )
         )
         _jobs.value = sampleJobs

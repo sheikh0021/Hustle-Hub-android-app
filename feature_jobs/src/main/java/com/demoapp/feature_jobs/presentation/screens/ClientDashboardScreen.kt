@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -388,18 +389,18 @@ private fun JobTypeCard(
             ) {
                 Text(
                     text = title,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 
                 Text(
                     text = description,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    lineHeight = 16.sp
+                    lineHeight = MaterialTheme.typography.bodySmall.lineHeight
                 )
             }
         }
@@ -1168,46 +1169,13 @@ fun MyPostedJobsSection(navController: NavController, clientId: String) {
                         )
                     }
                     
-                    TextButton(
-                        onClick = { 
-                            navController.navigate("job_poster_dashboard")
-                        } 
-                    ) {
-                        Text(
-                            text = "Manage",
-                            fontSize = 12.sp
-                        )
-                    }
+                    
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            if (postedJobs.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "📋",
-                        fontSize = 32.sp
-                    )
-                    Text(
-                        text = "No posted jobs yet",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = "Create your first job to get started",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        textAlign = TextAlign.Center
-                    )
-                    
-                }
-            } else {
+            if (postedJobs.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 400.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1308,8 +1276,8 @@ fun PostedJobCard(job: JobData, navController: NavController) {
             ) {
                 Text(
                     text = "Type: ${job.jobType}",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 12.sp, // Increased from 10.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.weight(1f)
                 )
                 
@@ -1317,12 +1285,15 @@ fun PostedJobCard(job: JobData, navController: NavController) {
                 if (job.status == JobStatus.ACTIVE) {
                     TextButton(
                         onClick = { navController.navigate("job_applicants/${job.id}") },
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp)
+                        modifier = Modifier
+                            .height(36.dp) // Larger button height
+                            .padding(horizontal = 4.dp, vertical = 0.dp)
                     ) {
                         Text(
-                            text = "👥 View",
-                            fontSize = 9.sp,
-                            lineHeight = 10.sp
+                            text = "👥 View Applicants",
+                            fontSize = 13.sp, // Increased from 9.sp
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 16.sp // Increased line height
                         )
                     }
                 }
@@ -1331,7 +1302,6 @@ fun PostedJobCard(job: JobData, navController: NavController) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NotificationBell(
     userId: String,
@@ -1342,34 +1312,42 @@ private fun NotificationBell(
     
     val unreadCount = notificationRepository.getUnreadCount(userId)
     
-    BadgedBox(
-        badge = {
-            if (unreadCount > 0) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.error
-                ) {
-                    Text(
-                        text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                        color = MaterialTheme.colorScheme.onError,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-    ) {
+    Box {
         IconButton(
-            onClick = { navController.navigate("notifications") }
+            onClick = { navController.navigate("notifications") },
+            modifier = Modifier.size(48.dp) // Larger button size
         ) {
             Icon(
                 imageVector = Icons.Default.Notifications,
                 contentDescription = "Notifications",
+                modifier = Modifier.size(28.dp), // Larger icon size
                 tint = if (unreadCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
+        }
+        
+        // Custom positioned badge
+        if (unreadCount > 0) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-2).dp, y = 6.dp), // Position badge closer to icon
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.error,
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                    color = MaterialTheme.colorScheme.onError,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                    minLines = 1
+                )
+            }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkerNotificationBell(
     workerId: String,
@@ -1388,29 +1366,38 @@ private fun WorkerNotificationBell(
         }
     }
 
-    BadgedBox(
-        badge = {
-            if (unreadCount > 0) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.error
-                ) {
-                    Text(
-                        text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                        color = MaterialTheme.colorScheme.onError,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-    ) {
+    Box {
         IconButton(
-            onClick = { navController.navigate("worker_notifications") }
+            onClick = { navController.navigate("worker_notifications") },
+            modifier = Modifier.size(48.dp) // Larger button size
         ) {
             Icon(
                 imageVector = Icons.Default.Notifications,
                 contentDescription = "Notifications",
+                modifier = Modifier.size(28.dp), // Larger icon size
                 tint = if (unreadCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
+        }
+        
+        // Custom positioned badge
+        if (unreadCount > 0) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-2).dp, y = 6.dp), // Position badge closer to icon
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.error,
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                    color = MaterialTheme.colorScheme.onError,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                    minLines = 1
+                )
+            }
         }
     }
 }

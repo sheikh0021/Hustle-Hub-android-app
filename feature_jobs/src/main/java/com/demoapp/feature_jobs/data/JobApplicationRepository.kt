@@ -195,6 +195,7 @@ class JobApplicationRepository {
      * Initialize with sample data for demo purposes
      */
     fun initializeSampleData() {
+        // Keep only 1-2 sample applicants - rest should come from backend
         val sampleApplications = listOf(
             JobApplication(
                 id = "app_1",
@@ -208,95 +209,13 @@ class JobApplicationRepository {
             ),
             JobApplication(
                 id = "app_2",
-                jobId = "sample_grocery_1", // Same grocery job
+                jobId = "sample_delivery_1", // Package Delivery job
                 workerId = "worker_2",
                 workerName = "Sarah Wanjiku",
                 workerPhone = "+254723456789",
                 workerRating = 4.6f,
                 workerCompletedTasks = 32,
-                applicationMessage = "I live near the area and can complete this task quickly."
-            ),
-            JobApplication(
-                id = "app_3",
-                jobId = "sample_delivery_1", // Package Delivery job
-                workerId = "worker_3",
-                workerName = "Peter Kimani",
-                workerPhone = "+254734567890",
-                workerRating = 4.9f,
-                workerCompletedTasks = 67,
                 applicationMessage = "I have a motorcycle and can handle delivery tasks efficiently."
-            ),
-            JobApplication(
-                id = "app_4",
-                jobId = "sample_delivery_1", // Same delivery job
-                workerId = "worker_4",
-                workerName = "Grace Akinyi",
-                workerPhone = "+254745678901",
-                workerRating = 4.7f,
-                workerCompletedTasks = 28,
-                applicationMessage = "I'm reliable and have good communication skills."
-            ),
-            JobApplication(
-                id = "app_5",
-                jobId = "sample_survey_1", // Customer Survey job
-                workerId = "worker_5",
-                workerName = "David Ochieng",
-                workerPhone = "+254756789012",
-                workerRating = 4.5f,
-                workerCompletedTasks = 19,
-                applicationMessage = "I'm good with surveys and have excellent communication skills."
-            ),
-            JobApplication(
-                id = "app_6",
-                jobId = "sample_cleaning_1", // House Cleaning job
-                workerId = "worker_6",
-                workerName = "Mary Wanjiku",
-                workerPhone = "+254767890123",
-                workerRating = 4.8f,
-                workerCompletedTasks = 52,
-                applicationMessage = "I have 3 years of cleaning experience and bring my own supplies."
-            ),
-            JobApplication(
-                id = "app_7",
-                jobId = "sample_tech_1", // Tech Support job
-                workerId = "worker_7",
-                workerName = "James Otieno",
-                workerPhone = "+254778901234",
-                workerRating = 4.9f,
-                workerCompletedTasks = 38,
-                applicationMessage = "I'm a certified IT technician and can help with WiFi setup."
-            ),
-            // Sample applications for current worker to test withdrawal functionality
-            JobApplication(
-                id = "app_current_1",
-                jobId = "sample_grocery_1",
-                workerId = "worker_current_user",
-                workerName = "John Kamau",
-                workerPhone = "+254700000000",
-                workerRating = 4.5f,
-                workerCompletedTasks = 25,
-                applicationMessage = "I'm available for grocery shopping tasks."
-            ),
-            JobApplication(
-                id = "app_current_2",
-                jobId = "sample_delivery_1",
-                workerId = "worker_current_user",
-                workerName = "John Kamau",
-                workerPhone = "+254700000000",
-                workerRating = 4.5f,
-                workerCompletedTasks = 25,
-                applicationMessage = "I have a motorcycle and can handle delivery tasks."
-            ),
-            JobApplication(
-                id = "app_current_3",
-                jobId = "sample_survey_1",
-                workerId = "worker_current_user",
-                workerName = "John Kamau",
-                workerPhone = "+254700000000",
-                workerRating = 4.5f,
-                workerCompletedTasks = 25,
-                applicationMessage = "I'm experienced with survey tasks.",
-                status = ApplicationStatus.SELECTED
             )
         )
         

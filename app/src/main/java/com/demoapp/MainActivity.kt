@@ -352,7 +352,24 @@ class MainActivity : LanguageAwareActivity() {
                         composable("my_tasks") {
                             MyTasksScreen(
                                 navController = navController,
-                                workerId = "worker_1" // Default worker ID for demo
+                                workerId = "worker_1", // Default worker ID for demo
+                                initialTabIndex = 0
+                            )
+                        }
+                        
+                        composable("my_tasks/{tab}") { backStackEntry ->
+                            val tab = backStackEntry.arguments?.getString("tab") ?: "active"
+                            val initialTabIndex = when (tab) {
+                                "active" -> 0
+                                "applied" -> 1
+                                "completed" -> 2
+                                "cancelled" -> 3
+                                else -> 0
+                            }
+                            MyTasksScreen(
+                                navController = navController,
+                                workerId = "worker_1", // Default worker ID for demo
+                                initialTabIndex = initialTabIndex
                             )
                         }
 
@@ -469,20 +486,12 @@ class MainActivity : LanguageAwareActivity() {
                             // TODO: Get job data and navigate to ReceiptConfirmationScreen
                         }
                         
-                        composable("job_details/{jobTitle}") { backStackEntry ->
-                            val jobTitle = backStackEntry.arguments?.getString("jobTitle") ?: ""
-                            val jobData = JobRepositorySingleton.instance.getJobByTitle(jobTitle)
-                            if (jobData != null) {
-                                JobDetailsScreen(
-                                    jobData = jobData.copy(id = jobTitle),
-                                    navController = navController
-                                )
-                            } else {
-                                // Fallback: navigate back to worker dashboard if job not found
-                                LaunchedEffect(Unit) {
-                                    navController.popBackStack()
-                                }
-                            }
+                        composable("job_details/{taskId}") { backStackEntry ->
+                            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+                            JobDetailsScreen(
+                                taskId = taskId,
+                                navController = navController
+                            )
                         }
                         
                         composable("job_chat/{jobTitle}") { backStackEntry ->
